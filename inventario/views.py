@@ -9,54 +9,19 @@ from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm
 
 
 def dashboard(request):
-    total_personas = Persona.objects.count()
-    personas_activas = Persona.objects.filter(activo=True).count()
-    total_ordenes = OrdenTrabajo.objects.count()
-    ordenes_completadas = OrdenTrabajo.objects.filter(completada=True).count()
-    ordenes_pendientes = OrdenTrabajo.objects.filter(completada=False).count()
-
-    stats_asignaciones = Asignacion.objects.aggregate(
-        total_acciones=Sum('acciones'),
-        total_horas_diurnas=Sum('horas_diurnas'),
-        total_horas_extras=Sum('horas_extras'),
-    )
-
-    ultimas_ordenes = OrdenTrabajo.objects.select_related().prefetch_related('asignaciones').order_by('-fecha_creacion')[:5]
-
-    top_personas = Persona.objects.filter(activo=True).annotate(
+    personas = Persona.objects.filter(activo=True).annotate(
         total_act=Sum('asignaciones__acciones'),
         total_hd=Sum('asignaciones__horas_diurnas'),
         total_he=Sum('asignaciones__horas_extras'),
-    ).order_by('-total_act')[:10]
+    ).order_by('apellido', 'nombre')
 
-    acciones_por_mes = (
-        Asignacion.objects
-        .values('fecha__year', 'fecha__month')
-        .annotate(
-            total_acciones=Sum('acciones'),
-            total_horas=Sum('horas_diurnas') + Sum('horas_extras'),
-        )
-        .order_by('-fecha__year', '-fecha__month')[:12]
-    )
-
-    for p in top_personas:
+    for p in personas:
         p.total_act = p.total_act or 0
         p.total_hd = p.total_hd or 0
         p.total_he = p.total_he or 0
+        p.total_horas = p.total_hd + p.total_he
 
-    context = {
-        'total_personas': total_personas,
-        'personas_activas': personas_activas,
-        'total_ordenes': total_ordenes,
-        'ordenes_completadas': ordenes_completadas,
-        'ordenes_pendientes': ordenes_pendientes,
-        'total_acciones': stats_asignaciones['total_acciones'] or 0,
-        'total_horas_diurnas': stats_asignaciones['total_horas_diurnas'] or 0,
-        'total_horas_extras': stats_asignaciones['total_horas_extras'] or 0,
-        'ultimas_ordenes': ultimas_ordenes,
-        'top_personas': top_personas,
-        'acciones_por_mes': list(acciones_por_mes),
-    }
+    context = {'personas': personas}
     return render(request, 'inventario/dashboard.html', context)
 
 
