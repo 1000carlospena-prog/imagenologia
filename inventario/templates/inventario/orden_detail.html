@@ -1,0 +1,155 @@
+{% extends 'inventario/base.html' %}
+{% block title %}OT-{{ orden.numero_orden }} - Imagenología{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-1">
+            <i class="bi bi-file-earmark-text"></i> OT-{{ orden.numero_orden }}
+            {% if orden.completada %}
+                <span class="badge bg-success fs-6">Completada</span>
+            {% else %}
+                <span class="badge bg-warning text-dark fs-6">Pendiente</span>
+            {% endif %}
+        </h3>
+        <small class="text-muted">Fecha: {{ orden.fecha|date:"l d F Y" }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'orden_update' orden.pk %}" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-list"></i> Volver
+        </a>
+    </div>
+</div>
+
+{% if orden.descripcion %}
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h6 class="text-muted mb-1"><i class="bi bi-chat-text"></i> Descripción:</h6>
+        <p class="mb-0">{{ orden.descripcion }}</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card border-info shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-info"><i class="bi bi-people"></i> Personas</h6>
+                <p class="fs-4 fw-bold mb-0">{{ orden.cantidad_personas }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-success"><i class="bi bi-check2-square"></i> Acciones</h6>
+                <p class="fs-4 fw-bold mb-0">{{ total_acciones }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-warning"><i class="bi bi-sun"></i> H. Diurnas</h6>
+                <p class="fs-4 fw-bold mb-0">{{ total_hd|floatformat:1 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-danger"><i class="bi bi-moon-stars"></i> H. Extra</h6>
+                <p class="fs-4 fw-bold mb-0">{{ total_he|floatformat:1 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-task"></i> Personas asignadas</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Persona</th>
+                                <th>Fecha</th>
+                                <th class="text-center">Acciones</th>
+                                <th class="text-center">H. Diurnas</th>
+                                <th class="text-center">H. Extra</th>
+                                <th class="text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in asignaciones %}
+                            <tr>
+                                <td><strong>{{ a.persona.apellido }} {{ a.persona.nombre }}</strong></td>
+                                <td>{{ a.fecha|date:"d/m/Y" }}</td>
+                                <td class="text-center">{{ a.acciones }}</td>
+                                <td class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
+                                <td class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
+                                <td class="text-center">
+                                    <a href="{% url 'asignacion_delete' a.pk %}" class="btn btn-sm btn-outline-danger" title="Quitar">
+                                        <i class="bi bi-person-x"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-3 d-block"></i>
+                                    No hay personas asignadas a esta orden
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if asignaciones %}
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="2" class="text-end">Totales:</td>
+                                <td class="text-center">{{ total_acciones }}</td>
+                                <td class="text-center">{{ total_hd|floatformat:1 }}</td>
+                                <td class="text-center">{{ total_he|floatformat:1 }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> Agregar persona</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label small">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger small">{{ field.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-circle"></i> Agregar a la orden
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

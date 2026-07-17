@@ -1,0 +1,73 @@
+body {
+    background-color: #f5f7fa;
+    min-height: 100vh;
+}
+
+.navbar-brand {
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    transition: transform 0.1s ease;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+    font-weight: 600;
+}
+
+.table > thead > tr > th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table > tbody > tr:hover {
+    background-color: rgba(13, 110, 253, 0.03);
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.footer {
+    border-top: 1px solid #dee2e6;
+}
+
+.pagination .page-link {
+    border-radius: 5px;
+    margin: 0 2px;
+}
+
+.btn {
+    border-radius: 6px;
+}
+
+.form-control, .form-select {
+    border-radius: 6px;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+.alert {
+    border-radius: 8px;
+    border: none;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}

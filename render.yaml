@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: imagenologia
+    env: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn imagenologia.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: False
+      - key: DJANGO_ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DB_ENGINE
+        value: django.db.backends.postgresql
+      - key: DB_NAME
+        fromDatabase:
+          name: imagenologia-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: imagenologia-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: imagenologia-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: imagenologia-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: imagenologia-db
+          property: port
+
+databases:
+  - name: imagenologia-db
+    databaseName: imagenologia
+    plan: free

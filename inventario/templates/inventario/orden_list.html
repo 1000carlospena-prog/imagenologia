@@ -1,0 +1,107 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Órdenes de Trabajo - Imagenología{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-file-earmark-text"></i> Órdenes de Trabajo</h3>
+    <a href="{% url 'orden_create' %}" class="btn btn-primary">
+        <i class="bi bi-file-earmark-plus"></i> Nueva Orden
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="GET" class="row g-2 mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Buscar por N° de orden o descripción..." value="{{ query }}">
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                    {% if query or estado %}
+                        <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary">Limpiar</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="estado" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todos los estados</option>
+                    <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendientes</option>
+                    <option value="completada" {% if estado == 'completada' %}selected{% endif %}>Completadas</option>
+                </select>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-primary">
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Personas</th>
+                        <th class="text-center">Acciones</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in ordenes %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'orden_detail' o.pk %}" class="text-decoration-none fw-bold">
+                                OT-{{ o.numero_orden }}
+                            </a>
+                        </td>
+                        <td>{{ o.fecha|date:"d/m/Y" }}</td>
+                        <td class="text-truncate" style="max-width: 250px;">{{ o.descripcion|default:"-" }}</td>
+                        <td class="text-center">
+                            {% if o.completada %}
+                                <span class="badge bg-success">Completada</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ o.total_pers|default:0 }}</td>
+                        <td class="text-center">{{ o.total_act|default:0 }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'orden_detail' o.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalle">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'orden_update' o.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'orden_delete' o.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3 d-block"></i>
+                            {% if query %}No se encontraron órdenes con "{{ query }}"{% else %}No hay órdenes de trabajo registradas{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if ordenes.has_other_pages %}
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if ordenes.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&laquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ ordenes.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&lsaquo;</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ ordenes.number }} de {{ ordenes.paginator.num_pages }}</span></li>
+                {% if ordenes.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ ordenes.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&rsaquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ ordenes.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
