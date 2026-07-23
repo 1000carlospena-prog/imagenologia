@@ -34,20 +34,18 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">Unidad de salud</label>
-        <select name="unidad" class="form-select">
-            <option value="">Todas</option>
+        <label class="form-label small text-muted mb-1">Unidad de salud <span class="text-info">(Ctrl+clic para varias)</span></label>
+        <select name="unidad" class="form-select" multiple size="6">
             {% for u in unidades %}
-                <option value="{{ u }}" {% if f_unidad == u %}selected{% endif %}>{{ u }}</option>
+                <option value="{{ u }}" {% if u in f_unidad %}selected{% endif %}>{{ u }}</option>
             {% endfor %}
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">Municipio</label>
-        <select name="municipio" class="form-select">
-            <option value="">Todos</option>
+        <label class="form-label small text-muted mb-1">Municipio <span class="text-info">(Ctrl+clic)</span></label>
+        <select name="municipio" class="form-select" multiple size="6">
             {% for m in municipios_list %}
-                <option value="{{ m }}" {% if f_municipio == m %}selected{% endif %}>{{ m }}</option>
+                <option value="{{ m }}" {% if m in f_municipio %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
         </select>
     </div>
@@ -62,7 +60,7 @@
     </div>
     <div class="col-md-3 d-flex gap-2">
         <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
-        {% if q or f_marca or f_modelo or f_unidad or f_municipio or f_estado %}
+        {% if q or f_marca or f_modelo or f_unidad_str or f_municipio_str or f_estado %}
         <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary flex-fill">Limpiar</a>
         {% endif %}
     </div>
@@ -72,8 +70,9 @@
 <div class="mb-4">
     <h5 class="text-primary border-bottom pb-2"><i class="bi bi-building"></i> Santiago de Cuba</h5>
     {% for hospital, equipos in hospitales.items %}
+    {% cycle '#e3f2fd' '#e8f5e9' '#fff3e0' '#fce4ec' '#f3e5f5' '#e0f7fa' as header_bg silent %}
     <div class="card shadow-sm mb-3 border-0">
-        <div class="card-header bg-white py-2">
+        <div class="card-header py-2" style="background-color:{{ header_bg }}">
             <h6 class="mb-0 fw-bold"><i class="bi bi-hospital"></i> {{ hospital }}</h6>
         </div>
         <div class="card-body p-0">
@@ -135,8 +134,9 @@
 <div class="mb-4">
     <h5 class="text-success border-bottom pb-2"><i class="bi bi-geo-alt"></i> Otros municipios</h5>
     {% for municipio, equipos in municipios.items %}
+    {% cycle '#fff8e1' '#f1f8e9' '#e8eaf6' '#fbe9e7' '#f3e5f5' '#e0f2f1' as header_bg2 silent %}
     <div class="card shadow-sm mb-3 border-0">
-        <div class="card-header bg-white py-2">
+        <div class="card-header py-2" style="background-color:{{ header_bg2 }}">
             <h6 class="mb-0 fw-bold"><i class="bi bi-pin-map"></i> {{ municipio }}</h6>
         </div>
         <div class="card-body p-0">
