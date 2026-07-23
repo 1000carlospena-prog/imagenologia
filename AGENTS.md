@@ -25,7 +25,7 @@ inventario/                   # Main app
 ├── management/commands/
 │   ├── createsu.py           # Create superuser
 │   └── importar_equipos.py   # Import equipos from Excel
-├── migrations/               # 7 migrations
+├── migrations/               # 8 migrations
 ├── templatetags/
 │   └── inventario_tags.py    # Custom template tags/filters
 ├── templates/inventario/     # 13 HTML templates
@@ -38,9 +38,11 @@ venv/                         # Virtual environment (gitignored)
 ```
 
 ## Authentication Flow
-1. **Login** (`/login/`) — Django auth (user: `rximagenologia`, pass: `59968839`)
+1. **Login** (`/login/`) — Django auth (superuser: `v1`, pass: `Carlos1*`)
 2. **Select persona** (`/select-persona/`) — elige quién eres (Carlos Peña, Rafael Castillo, Carlos Medina), con botón "Usuario nuevo" para añadir persona rápida
 3. **Dashboard** (`/`) — resumen del mes actual por persona (acciones, horas trabajadas, horas extra)
+
+> Solo el superusuario `v1` ve el enlace al admin. Los demás usuarios Django no tienen acceso.
 
 ## Models & Relationships
 ```
@@ -64,7 +66,8 @@ Equipo                                       (inventory)
 | `/select-persona/` | persona selection | `select_persona` |
 | `/generar-orden/` | create work order | `generar_orden` |
 | `/personas/` | list, create, update, delete | `persona_*` |
-| `/ordenes/` | list, create, detail, update, delete | `orden_*` |
+| `/ordenes/` | list (merged OrdenTrabajo + ParteTrabajo), create, detail, update, delete | `orden_*` |
+| `/partes/<pk>/eliminar/` | delete ParteTrabajo | `parte_delete` |
 | `/asignacion/<pk>/eliminar/` | delete | `asignacion_delete` |
 | `/equipos/` | list with filters | `equipo_list` |
 | `/equipos/nuevo/` | create | `equipo_create` |
@@ -116,6 +119,7 @@ python manage.py runserver
 - **Procfile:** `web: python manage.py migrate && gunicorn ...`
 - **render.yaml** defines web service + PostgreSQL database
 - Build runs `collectstatic --noinput`, static via WhiteNoise
+- Migration `0008_setup_superuser` crea superadmin `v1`/`Carlos1*` y desactiva otros superadmins
 
 ## Accessibility & UI
 - Icon-only buttons/links have `aria-label`
