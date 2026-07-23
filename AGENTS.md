@@ -15,7 +15,7 @@ imagenologia/                  # Django project config
 ├── urls.py                   # Root URL routing
 ├── wsgi.py / asgi.py         # WSGI/ASGI entry points
 inventario/                   # Main app
-├── models.py                 # 6 models
+├── models.py                 # 8 models
 ├── views.py                  # All views (function-based)
 ├── urls.py                   # App URL routes
 ├── forms.py                  # ModelForms with Bootstrap widgets
@@ -55,18 +55,19 @@ Equipo                                       (inventory)
 - **Asignacion:** FK → Persona + OrdenTrabajo, fecha, acciones, horas_diurnas, horas_extras; `unique_together=[orden_trabajo, persona, fecha]`
 - **ParteTrabajo:** fecha_inicio, fecha_fin, acciones (1-10), cantidad_equipos, total_acciones, creado_por (FK Persona), fecha_creacion
 - **PartePersona:** FK → ParteTrabajo + Persona, horas_trabajadas, horas_extras; `unique_together=[parte, persona]`
-- **Equipo:** municipio, unidad_salud, tipo (RX/USD/OTRO), denominacion, servicio, local, marca, modelo, numero_serie, estado (texto libre), observaciones, frecuencia, fuente, fecha_creacion
+- **Equipo:** municipio, unidad_salud, tipo (RX/USD/OTRO), denominacion, servicio, local, marca, modelo, numero_serie, estado (texto libre), observaciones, frecuencia, fuente, ubicacion_temporal_municipio, ubicacion_temporal_unidad, nota_interna, fecha_creacion
 
 ## URL Routes
 | Prefix | Views | Names |
 |--------|-------|-------|
-| `/` | dashboard | `dashboard` |
+| `/` | dashboard (resumen del periodo activo) | `dashboard` |
 | `/login/` | login | `login` |
 | `/logout/` | logout | `logout` |
 | `/select-persona/` | persona selection | `select_persona` |
 | `/generar-orden/` | create work order | `generar_orden` |
 | `/personas/` | list, create, update, delete | `persona_*` |
 | `/ordenes/` | list (merged OrdenTrabajo + ParteTrabajo), create, detail, update, delete | `orden_*` |
+| `/partes/<pk>/editar/` | edit ParteTrabajo | `parte_update` |
 | `/partes/<pk>/eliminar/` | delete ParteTrabajo | `parte_delete` |
 | `/asignacion/<pk>/eliminar/` | delete | `asignacion_delete` |
 | `/historial/` | audit log (edits/deletes) | `historial` |
@@ -75,6 +76,9 @@ Equipo                                       (inventory)
 | `/equipos/nuevo/` | create | `equipo_create` |
 | `/equipos/<pk>/editar/` | update | `equipo_update` |
 | `/equipos/<pk>/eliminar/` | delete | `equipo_delete` |
+| `/equipos/<pk>/ubicacion/` | ver ubicación original vs temporal | `equipo_ubicacion` |
+| `/equipos/duplicados/` | list + bulk delete duplicados | `equipo_duplicados` |
+| `/periodos/` | create, list, delete periods | `periodo_*` |
 | `/admin/` | Django admin | — |
 
 ## Equipment Import System
@@ -82,12 +86,25 @@ Equipo                                       (inventory)
 - Run: `python manage.py importar_equipos` (auto-skips if equipos exist) or `--force` to re-import
 - Files: RX Provincia x marca, USD x Marcas, USD x Municipios, Plan de Mtto
 - USD x Municipios uses dynamic header detection (varies per sheet)
-- ~462 equipos imported total (persistent — import no longer auto-runs on deploy)
+- ~576 equipos imported total (persistent — import no longer auto-runs on deploy)
+- All equipos assigned to "Santiago de Cuba" municipio (Jul 2026)
 
 ## Forms
-- `EquipoForm`: all fields editable, `estado` uses TextInput with HTML5 datalist for suggestions from existing values
+- `EquipoForm`: all fields editable, `estado` uses TextInput with HTML5 datalist for suggestions from existing values, `municipio`/`unidad_salud` use datalists with JS filtering (unidad options depend on selected municipio)
 - `ParteTrabajoForm`: CheckboxSelectMultiple for personas, global horas_trabajadas/horas_extras fields
 - Filters on equipo_list: marca, modelo, unidad_salud, municipio, estado — all populated with distinct DB values
+
+## Periodo Activo
+- Global filter via session + context processor
+- Last created period = default active
+- Dropdown in dashboard to switch periods
+- Dashboard stats (acciones, horas, horas extra) filtered by active period
+
+## Ubicación Temporal (Préstamo)
+- Equipo has `ubicacion_temporal_municipio`, `ubicacion_temporal_unidad`, `nota_interna`
+- Green highlight (`table-success`) in equipo_list when temp location is set
+- Badge "En préstamo" + geo-alt button → `equipo_ubicacion` view
+- `equipo_ubicacion` shows original location vs temporary location side by side
 
 ## Environment Variables
 | Variable | Description |

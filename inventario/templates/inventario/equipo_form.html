@@ -106,11 +106,26 @@ function filterUnidad(municipioInput, datalistId) {
     });
 }
 
-var municipioInput = document.getElementById('id_municipio');
-if (municipioInput) {
-    municipioInput.addEventListener('input', function() {
-        filterUnidad(municipioInput, 'unidad-sugerencias');
+function filterUnidadSelect() {
+    var mun = municipioInput.value.trim();
+    var unidades = munUnidad[mun] || [];
+    allUnidadOptions.forEach(function(opt) {
+        if (!opt.value) return;
+        if (!mun || unidades.indexOf(opt.value) !== -1) {
+            opt.style.display = '';
+        } else {
+            opt.style.display = 'none';
+        }
     });
+}
+
+var municipioInput = document.getElementById('id_municipio');
+var unidadSelect = document.getElementById('id_unidad_salud');
+var allUnidadOptions = [];
+if (municipioInput && unidadSelect) {
+    allUnidadOptions = Array.from(unidadSelect.options);
+    municipioInput.addEventListener('input', filterUnidadSelect);
+    filterUnidadSelect();
 }
 
 var tempMunInput = document.getElementById('id_ubicacion_temporal_municipio');

@@ -159,7 +159,7 @@ class EquipoForm(forms.ModelForm):
                   'nota_interna']
         widgets = {
             'municipio': forms.TextInput(attrs={'class': 'form-control', 'list': 'municipio-sugerencias', 'autocomplete': 'off'}),
-            'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-sugerencias', 'autocomplete': 'off'}),
+            'unidad_salud': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             'tipo': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             'denominacion': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
             'servicio': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
@@ -174,6 +174,12 @@ class EquipoForm(forms.ModelForm):
             'ubicacion_temporal_unidad': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-temporal-sugerencias', 'autocomplete': 'off'}),
             'nota_interna': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+        choices = [('', '---------')] + [(u, u) for u in unidades]
+        self.fields['unidad_salud'].widget.choices = choices
 
 
 
