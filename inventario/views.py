@@ -932,49 +932,53 @@ def visitar(request, uuid_code):
     if enlace.usado:
         messages.error(request, 'Este enlace de visita ya fue usado.')
         return redirect('login')
-    enlace.usado = True
-    enlace.fecha_uso = timezone.now()
-    enlace.save(update_fields=['usado', 'fecha_uso'])
-    request.session['is_visitor'] = True
-    request.session['visitor_link_id'] = enlace.pk
-    request.session.save()
-    messages.info(request, 'Modo visita — solo puedes ver la información, no editarla.')
-    periodo = Periodo.objects.first()
-    if periodo:
-        inicio, fin = periodo.fecha_inicio, periodo.fecha_fin
-    else:
-        inicio, fin = _mes_actual_range()
-    personas = Persona.objects.filter(activo=True).annotate(
-        total_act=Sum('asignaciones__acciones', filter=Q(
-            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
-        )),
-        total_hd=Sum('asignaciones__horas_diurnas', filter=Q(
-            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
-        )),
-        total_he=Sum('asignaciones__horas_extras', filter=Q(
-            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
-        )),
-        partes_act=Sum('partes__parte__total_acciones', filter=Q(
-            partes__parte__fecha_inicio__gte=inicio,
-            partes__parte__fecha_fin__lte=fin,
-        )),
-        partes_hd=Sum('partes__horas_trabajadas', filter=Q(
-            partes__parte__fecha_inicio__gte=inicio,
-            partes__parte__fecha_fin__lte=fin,
-        )),
-        partes_he=Sum('partes__horas_extras', filter=Q(
-            partes__parte__fecha_inicio__gte=inicio,
-            partes__parte__fecha_fin__lte=fin,
-        )),
-    ).order_by('apellido', 'nombre')
-    for p in personas:
-        p.total_act = (p.total_act or 0) + (p.partes_act or 0)
-        p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
-        p.total_he = (p.total_he or 0) + (p.partes_he or 0)
-        p.total_horas = p.total_hd + p.total_he
-    return render(request, 'inventario/dashboard.html', {
-        'personas': personas,
-        'persona_actual': None,
-        'inicio': inicio,
-        'fin': fin,
+    if request.method == 'POST':
+        enlace.usado = True
+        enlace.fecha_uso = timezone.now()
+        enlace.save(update_fields=['usado', 'fecha_uso'])
+        request.session['is_visitor'] = True
+        request.session['visitor_link_id'] = enlace.pk
+        request.session.save()
+        messages.info(request, 'Modo visita — solo puedes ver la información, no editarla.')
+        periodo = Periodo.objects.first()
+        if periodo:
+            inicio, fin = periodo.fecha_inicio, periodo.fecha_fin
+        else:
+            inicio, fin = _mes_actual_range()
+        personas = Persona.objects.filter(activo=True).annotate(
+            total_act=Sum('asignaciones__acciones', filter=Q(
+                asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+            )),
+            total_hd=Sum('asignaciones__horas_diurnas', filter=Q(
+                asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+            )),
+            total_he=Sum('asignaciones__horas_extras', filter=Q(
+                asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+            )),
+            partes_act=Sum('partes__parte__total_acciones', filter=Q(
+                partes__parte__fecha_inicio__gte=inicio,
+                partes__parte__fecha_fin__lte=fin,
+            )),
+            partes_hd=Sum('partes__horas_trabajadas', filter=Q(
+                partes__parte__fecha_inicio__gte=inicio,
+                partes__parte__fecha_fin__lte=fin,
+            )),
+            partes_he=Sum('partes__horas_extras', filter=Q(
+                partes__parte__fecha_inicio__gte=inicio,
+                partes__parte__fecha_fin__lte=fin,
+            )),
+        ).order_by('apellido', 'nombre')
+        for p in personas:
+            p.total_act = (p.total_act or 0) + (p.partes_act or 0)
+            p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
+            p.total_he = (p.total_he or 0) + (p.partes_he or 0)
+            p.total_horas = p.total_hd + p.total_he
+        return render(request, 'inventario/dashboard.html', {
+            'personas': personas,
+            'persona_actual': None,
+            'inicio': inicio,
+            'fin': fin,
+        })
+    return render(request, 'inventario/visitar_confirm.html', {
+        'enlace': enlace,
     })
