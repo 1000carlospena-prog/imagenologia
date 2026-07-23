@@ -12,19 +12,27 @@
 <div class="card shadow-sm">
     <div class="card-body">
         <form method="GET" class="row g-2 mb-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" class="form-control" placeholder="Buscar por N° de orden o descripción..." value="{{ query }}">
+                    <input type="text" name="q" class="form-control" placeholder="Buscar..." value="{{ query }}">
                     <button type="submit" class="btn btn-primary">Buscar</button>
-                    {% if query or estado %}
+                    {% if query or estado or f_persona %}
                         <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary">Limpiar</a>
                     {% endif %}
                 </div>
             </div>
             <div class="col-md-3">
+                <select name="persona" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todas las personas</option>
+                    {% for p in personas %}
+                        <option value="{{ p.pk }}" {% if f_persona|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.apellido }} {{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
                 <select name="estado" class="form-select" onchange="this.form.submit()">
-                    <option value="">Todos los estados</option>
+                    <option value="">Todos</option>
                     <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendientes</option>
                     <option value="completada" {% if estado == 'completada' %}selected{% endif %}>Completadas</option>
                 </select>
@@ -35,44 +43,56 @@
             <table class="table table-hover align-middle">
                 <thead class="table-primary">
                     <tr>
-                        <th>N° Orden</th>
+                        <th>Código</th>
                         <th>Fecha</th>
                         <th>Descripción</th>
                         <th class="text-center">Estado</th>
                         <th class="text-center">Personas</th>
                         <th class="text-center">Acciones</th>
-                        <th class="text-center">Acciones</th>
+                        <th class="text-center"></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for o in ordenes %}
-                    <tr>
+                    {% for item in items %}
+                    <tr class="{% if item.tipo == 'parte' %}table-info{% endif %}">
                         <td>
-                            <a href="{% url 'orden_detail' o.pk %}" class="text-decoration-none fw-bold">
-                                OT-{{ o.numero_orden }}
-                            </a>
+                            <span class="fw-bold">{{ item.codigo }}</span>
+                            {% if item.tipo == 'parte' %}
+                                <span class="badge bg-info text-dark">Parte</span>
+                            {% endif %}
                         </td>
-                        <td>{{ o.fecha|date:"d/m/Y" }}</td>
-                        <td class="text-truncate" style="max-width: 250px;">{{ o.descripcion|default:"-" }}</td>
+                        <td>{{ item.fecha|date:"d/m/Y" }}</td>
+                        <td class="text-truncate" style="max-width: 250px;">{{ item.descripcion }}</td>
                         <td class="text-center">
-                            {% if o.completada %}
+                            {% if item.completada %}
                                 <span class="badge bg-success">Completada</span>
                             {% else %}
                                 <span class="badge bg-warning text-dark">Pendiente</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">{{ o.total_pers|default:0 }}</td>
-                        <td class="text-center">{{ o.total_act|default:0 }}</td>
+                        <td class="text-center" title="{{ item.personas_str }}">
+                            {{ item.total_pers }}
+                            {% if item.personas_str %}
+                                <i class="bi bi-info-circle text-muted small" data-bs-toggle="tooltip" title="{{ item.personas_str }}"></i>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ item.total_act }}</td>
                         <td class="text-center">
-                            <a href="{% url 'orden_detail' o.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalle" aria-label="Ver detalle OT-{{ o.numero_orden }}">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            <a href="{% url 'orden_update' o.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar OT-{{ o.numero_orden }}">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <a href="{% url 'orden_delete' o.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar OT-{{ o.numero_orden }}">
-                                <i class="bi bi-trash"></i>
-                            </a>
+                            {% if item.tipo == 'orden' %}
+                                <a href="{% url 'orden_detail' item.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalle" aria-label="Ver detalle {{ item.codigo }}">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'orden_update' item.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ item.codigo }}">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'orden_delete' item.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ item.codigo }}">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            {% else %}
+                                <a href="{% url 'parte_delete' item.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ item.codigo }}">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -87,17 +107,17 @@
             </table>
         </div>
 
-        {% if ordenes.has_other_pages %}
+        {% if items.has_other_pages %}
         <nav>
             <ul class="pagination justify-content-center">
-                {% if ordenes.has_previous %}
-                    <li class="page-item"><a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&laquo;</a></li>
-                    <li class="page-item"><a class="page-link" href="?page={{ ordenes.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&lsaquo;</a></li>
+                {% if items.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if f_persona %}&persona={{ f_persona }}{% endif %}">&laquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ items.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if f_persona %}&persona={{ f_persona }}{% endif %}">&lsaquo;</a></li>
                 {% endif %}
-                <li class="page-item active"><span class="page-link">{{ ordenes.number }} de {{ ordenes.paginator.num_pages }}</span></li>
-                {% if ordenes.has_next %}
-                    <li class="page-item"><a class="page-link" href="?page={{ ordenes.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&rsaquo;</a></li>
-                    <li class="page-item"><a class="page-link" href="?page={{ ordenes.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">&raquo;</a></li>
+                <li class="page-item active"><span class="page-link">{{ items.number }} de {{ items.paginator.num_pages }}</span></li>
+                {% if items.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ items.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if f_persona %}&persona={{ f_persona }}{% endif %}">&rsaquo;</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ items.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if f_persona %}&persona={{ f_persona }}{% endif %}">&raquo;</a></li>
                 {% endif %}
             </ul>
         </nav>

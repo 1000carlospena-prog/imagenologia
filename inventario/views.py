@@ -196,30 +196,86 @@ def persona_delete(request, pk):
 def orden_list(request):
     query = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
-    ordenes = OrdenTrabajo.objects.all()
+    f_persona = request.GET.get('persona', '')
 
+    from itertools import chain
+
+    ordenes_qs = OrdenTrabajo.objects.annotate(
+        total_act=Sum('asignaciones__acciones'),
+        total_pers=Count('asignaciones__persona', distinct=True),
+    )
     if query:
-        ordenes = ordenes.filter(
+        ordenes_qs = ordenes_qs.filter(
             Q(numero_orden__icontains=query) | Q(descripcion__icontains=query)
         )
     if estado == 'completada':
-        ordenes = ordenes.filter(completada=True)
+        ordenes_qs = ordenes_qs.filter(completada=True)
     elif estado == 'pendiente':
-        ordenes = ordenes.filter(completada=False)
+        ordenes_qs = ordenes_qs.filter(completada=False)
+    if f_persona:
+        ordenes_qs = ordenes_qs.filter(asignaciones__persona_id=f_persona)
 
-    ordenes = ordenes.annotate(
-        total_act=Sum('asignaciones__acciones'),
-        total_pers=Count('asignaciones__persona', distinct=True),
-    ).order_by('-fecha', '-fecha_creacion')
+    partes_qs = ParteTrabajo.objects.prefetch_related('personas__persona', 'creado_por')
+    if query:
+        partes_qs = partes_qs.filter(
+            Q(total_acciones__icontains=query)
+        )
+    if f_persona:
+        partes_qs = partes_qs.filter(personas__persona_id=f_persona)
 
-    paginator = Paginator(ordenes, 20)
+    def orden_to_item(o):
+        return {
+            'tipo': 'orden',
+            'pk': o.pk,
+            'codigo': f'OT-{o.numero_orden}',
+            'fecha': o.fecha,
+            'descripcion': o.descripcion,
+            'completada': o.completada,
+            'total_pers': o.total_pers or 0,
+            'total_act': o.total_act or 0,
+            'personas_str': ', '.join(
+                str(a.persona) for a in o.asignaciones.select_related('persona').all()
+            ),
+        }
+
+    def parte_to_item(p):
+        personas_str = ', '.join(
+            f'{pp.persona.apellido} {pp.persona.nombre}'
+            for pp in p.personas.select_related('persona').all()
+        )
+        return {
+            'tipo': 'parte',
+            'pk': p.pk,
+            'codigo': f'Parte #{p.pk}',
+            'fecha': p.fecha_inicio,
+            'descripcion': f'{p.fecha_inicio|date:"d/m/Y"} – {p.fecha_fin|date:"d/m/Y"} ({p.acciones} acc × {p.cantidad_equipos} eq)',
+            'completada': True,
+            'total_pers': p.personas.count(),
+            'total_act': p.total_acciones,
+            'personas_str': personas_str,
+        }
+
+    items = sorted(
+        chain(
+            (orden_to_item(o) for o in ordenes_qs),
+            (parte_to_item(p) for p in partes_qs),
+        ),
+        key=lambda x: x['fecha'],
+        reverse=True,
+    )
+
+    paginator = Paginator(items, 20)
     page = request.GET.get('page', 1)
-    ordenes_page = paginator.get_page(page)
+    items_page = paginator.get_page(page)
+
+    personas = Persona.objects.filter(activo=True).order_by('apellido', 'nombre')
 
     return render(request, 'inventario/orden_list.html', {
-        'ordenes': ordenes_page,
+        'items': items_page,
         'query': query,
         'estado': estado,
+        'f_persona': f_persona,
+        'personas': personas,
     })
 
 
@@ -388,6 +444,15 @@ def generar_orden(request):
         'fecha_min': fecha_min,
         'fecha_max': fecha_max,
     })
+
+
+def parte_delete(request, pk):
+    parte = get_object_or_404(ParteTrabajo, pk=pk)
+    if request.method == 'POST':
+        parte.delete()
+        messages.success(request, 'Parte de trabajo eliminado correctamente.')
+        return redirect('orden_list')
+    return render(request, 'inventario/parte_confirm_delete.html', {'parte': parte})
 
 
 def equipo_list(request):
