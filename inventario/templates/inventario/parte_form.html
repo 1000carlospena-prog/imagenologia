@@ -95,25 +95,33 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">
-                            <i class="bi bi-people"></i> Personas que trabajaron
-                        </label>
-                        <div class="card bg-light border-0">
-                            <div class="card-body py-2 px-3">
-                                <div class="row g-2">
-                                    {% for persona in form.personas.field.queryset %}
-                                        <div class="col-md-6">
-                                            <div class="form-check">
-                                                <input type="checkbox" name="personas" value="{{ persona.pk }}"
-                                                       id="id_personas_{{ persona.pk }}"
-                                                       class="form-check-input"
-                                                       {% if persona.pk in form.personas.value %}checked{% endif %}>
-                                                <label class="form-check-label" for="id_personas_{{ persona.pk }}">
-                                                    {{ persona.apellido }} {{ persona.nombre }}
-                                                </label>
+                        <div class="d-flex align-items-center mb-2">
+                            <label class="form-label fw-semibold mb-0 me-2">
+                                <i class="bi bi-people"></i> Personas que trabajaron
+                            </label>
+                            <span class="badge bg-secondary" id="personasCount">0</span>
+                            <button class="btn btn-sm btn-outline-primary ms-auto d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#personasCollapse" aria-expanded="false">
+                                <i class="bi bi-eye"></i> Ver
+                            </button>
+                        </div>
+                        <div class="collapse d-md-block" id="personasCollapse">
+                            <div class="card bg-light border-0">
+                                <div class="card-body py-2 px-3">
+                                    <div class="row g-2" id="personasContainer">
+                                        {% for persona in form.personas.field.queryset %}
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input type="checkbox" name="personas" value="{{ persona.pk }}"
+                                                           id="id_personas_{{ persona.pk }}"
+                                                           class="form-check-input"
+                                                           {% if persona.pk in form.personas.value %}checked{% endif %}>
+                                                    <label class="form-check-label" for="id_personas_{{ persona.pk }}">
+                                                        {{ persona.apellido }} {{ persona.nombre }}
+                                                    </label>
+                                                </div>
                                             </div>
-                                        </div>
-                                    {% endfor %}
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -152,6 +160,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     accionesInput.addEventListener('input', calcTotal);
     equiposInput.addEventListener('input', calcTotal);
+
+    function updatePersonasCount() {
+        var checked = document.querySelectorAll('#personasContainer input:checked').length;
+        document.getElementById('personasCount').textContent = checked;
+    }
+    document.querySelectorAll('#personasContainer input').forEach(function(cb) {
+        cb.addEventListener('change', updatePersonasCount);
+    });
+    updatePersonasCount();
 });
 </script>
 {% endblock %}

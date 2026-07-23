@@ -8,10 +8,10 @@
         {% if not persona.activo %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
     </h3>
     <div>
-        <a href="{% url 'persona_update' persona.pk %}" class="btn btn-outline-primary btn-sm">
+        <a href="{% url 'persona_update' persona.pk %}" class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Editar
         </a>
-        <a href="{% url 'persona_list' %}" class="btn btn-outline-secondary btn-sm">
+        <a href="{% url 'persona_list' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Volver
         </a>
     </div>
@@ -58,7 +58,8 @@
         <h5 class="mb-0"><i class="bi bi-list-task"></i> Órdenes y partes en el periodo</h5>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
+        <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-card-list">
             <thead class="table-primary">
                 <tr>
                     <th>Tipo</th>
@@ -73,31 +74,45 @@
             <tbody>
                 {% for a in asignaciones %}
                 <tr>
-                    <td><span class="badge bg-primary">OT-{{ a.orden_trabajo.numero_orden }}</span></td>
-                    <td>{{ a.orden_trabajo.descripcion|default:"-"|truncatewords:8 }}</td>
-                    <td>{{ a.fecha|date:'d/m/Y' }}</td>
-                    <td class="text-center">{{ a.acciones }}</td>
-                    <td class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
-                    <td class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
-                    <td class="text-center">
-                        <a href="{% url 'orden_update' a.orden_trabajo.pk %}" class="btn btn-sm btn-outline-primary" title="Editar orden" aria-label="Editar OT-{{ a.orden_trabajo.numero_orden }}">
-                            <i class="bi bi-pencil"></i>
-                        </a>
+                    <td data-label="Tipo"><span class="badge bg-primary">OT-{{ a.orden_trabajo.numero_orden }}</span></td>
+                    <td data-label="Descripción">{{ a.orden_trabajo.descripcion|default:"-"|truncatewords:8 }}</td>
+                    <td data-label="Fecha">{{ a.fecha|date:'d/m/Y' }}</td>
+                    <td data-label="Acciones" class="text-center">{{ a.acciones }}</td>
+                    <td data-label="Horas" class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
+                    <td data-label="H. Extra" class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
+                    <td data-label="" class="action-cell text-center">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'orden_update' a.orden_trabajo.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'asignacion_delete' a.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
                 {% for pp in partes %}
                 <tr>
-                    <td><span class="badge bg-success">Parte #{{ pp.parte.pk }}</span></td>
-                    <td>{{ pp.parte.fecha_inicio|date:'d/m/Y' }} – {{ pp.parte.fecha_fin|date:'d/m/Y' }}</td>
-                    <td>{{ pp.parte.fecha_inicio|date:'d/m/Y' }}</td>
-                    <td class="text-center">{{ pp.parte.total_acciones }}</td>
-                    <td class="text-center">{{ pp.horas_trabajadas|floatformat:1 }}</td>
-                    <td class="text-center">{{ pp.horas_extras|floatformat:1 }}</td>
-                    <td class="text-center">
-                        <a href="{% url 'parte_update' pp.parte.pk %}" class="btn btn-sm btn-outline-success" title="Editar parte" aria-label="Editar parte #{{ pp.parte.pk }}">
-                            <i class="bi bi-pencil"></i>
-                        </a>
+                    <td data-label="Tipo"><span class="badge bg-success">Parte #{{ pp.parte.pk }}</span></td>
+                    <td data-label="Descripción">{{ pp.parte.fecha_inicio|date:'d/m/Y' }} – {{ pp.parte.fecha_fin|date:'d/m/Y' }}</td>
+                    <td data-label="Fecha">{{ pp.parte.fecha_inicio|date:'d/m/Y' }}</td>
+                    <td data-label="Acciones" class="text-center">{{ pp.parte.total_acciones }}</td>
+                    <td data-label="Horas" class="text-center">{{ pp.horas_trabajadas|floatformat:1 }}</td>
+                    <td data-label="H. Extra" class="text-center">{{ pp.horas_extras|floatformat:1 }}</td>
+                    <td data-label="" class="action-cell text-center">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'parte_update' pp.parte.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'parte_delete' pp.parte.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -112,6 +127,7 @@
                 </tr>
             </tfoot>
         </table>
+        </div>
     </div>
 </div>
 {% else %}

@@ -80,13 +80,217 @@ body {
     background-color: rgba(13, 110, 253, 0.08) !important;
 }
 
-@media (max-width: 768px) {
+.table-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.tap-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.navbar .nav-link {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+@media (max-width: 576px) {
     .container-fluid {
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: 8px;
+        padding-right: 8px;
     }
 
     .card-body {
-        padding: 1rem;
+        padding: 0.75rem;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+    }
+
+    h4 {
+        font-size: 1.1rem;
+    }
+
+    h5 {
+        font-size: 1rem;
+    }
+
+    h6 {
+        font-size: 0.9rem;
+    }
+
+    .btn-responsive {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    a.nav-link {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    .pagination .page-link {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dropdown-menu .dropdown-item {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    .table-card-list thead {
+        display: none;
+    }
+
+    .table-card-list,
+    .table-card-list tbody,
+    .table-card-list tr,
+    .table-card-list td {
+        display: block;
+    }
+
+    .table-card-list tr {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .table-card-list td {
+        border: none;
+        padding: 0.25rem 0;
+        text-align: right;
+    }
+
+    .table-card-list td:empty {
+        display: none;
+    }
+
+    .table-card-list td::before {
+        content: attr(data-label);
+        float: left;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .table-card-list .action-cell {
+        text-align: center;
+        padding-top: 0.5rem;
+    }
+
+    .table-card-list .action-cell::before {
+        display: none;
+    }
+
+    .table-card-list td[colspan] {
+        text-align: center;
+    }
+
+    .table-card-list td[colspan]::before {
+        display: none;
+    }
+
+    .table-card-list .badge-cell {
+        text-align: left;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .container-fluid {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .btn-responsive {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pagination .page-link {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .table-card-list-md thead {
+        display: none;
+    }
+
+    .table-card-list-md,
+    .table-card-list-md tbody,
+    .table-card-list-md tr,
+    .table-card-list-md td {
+        display: block;
+    }
+
+    .table-card-list-md tr {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .table-card-list-md td {
+        border: none;
+        padding: 0.25rem 0;
+        text-align: right;
+    }
+
+    .table-card-list-md td:empty {
+        display: none;
+    }
+
+    .table-card-list-md td::before {
+        content: attr(data-label);
+        float: left;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .table-card-list-md .action-cell {
+        text-align: center;
+        padding-top: 0.5rem;
+    }
+
+    .table-card-list-md .action-cell::before {
+        display: none;
+    }
+
+    .table-card-list-md td[colspan] {
+        text-align: center;
+    }
+
+    .table-card-list-md td[colspan]::before {
+        display: none;
     }
 }

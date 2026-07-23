@@ -7,7 +7,7 @@
     {% if user.is_superuser %}
         <form method="POST" action="{% url 'historial_clear' %}" onsubmit="return confirm('¿Borrar todo el historial? Esta acción no se puede deshacer.');">
             {% csrf_token %}
-            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Limpiar historial</button>
+            <button type="submit" class="btn btn-outline-danger btn-responsive"><i class="bi bi-trash"></i> Limpiar historial</button>
         </form>
     {% endif %}
 </div>
@@ -15,7 +15,7 @@
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 small">
+            <table class="table table-hover align-middle mb-0 small table-card-list">
                 <thead class="table-primary">
                     <tr>
                         <th>Fecha</th>
@@ -28,23 +28,23 @@
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
-                        <td>
+                        <td data-label="Fecha">{{ log.fecha|date:"d/m/Y H:i" }}</td>
+                        <td data-label="Usuario">
                             {% if log.usuario %}
                                 <i class="bi bi-person"></i> {{ log.usuario }}
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Acción">
                             {% if log.accion == 'eliminar' %}
                                 <span class="badge bg-danger">Eliminar</span>
                             {% else %}
                                 <span class="badge bg-primary">Editar</span>
                             {% endif %}
                         </td>
-                        <td><strong>{{ log.modelo }}</strong> #{{ log.objeto_id }}</td>
-                        <td>{{ log.descripcion }}</td>
+                        <td data-label="Objeto"><strong>{{ log.modelo }}</strong> #{{ log.objeto_id }}</td>
+                        <td data-label="Descripción">{{ log.descripcion|truncatechars:80 }}</td>
                     </tr>
                     {% empty %}
                     <tr>

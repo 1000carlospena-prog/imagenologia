@@ -6,11 +6,18 @@
     <h3 class="mb-0"><i class="bi bi-tools"></i> Inventario de equipos</h3>
     <div class="d-flex gap-2 align-items-center">
         <span class="badge bg-secondary fs-6">{{ total }} equipos</span>
-        <a href="{% url 'equipo_create' %}" class="btn btn-success btn-sm"><i class="bi bi-plus-lg"></i> Agregar</a>
-        <a href="{% url 'equipo_duplicados' %}" class="btn btn-warning btn-sm"><i class="bi bi-files"></i> Duplicados</a>
+        <a href="{% url 'equipo_create' %}" class="btn btn-success btn-responsive"><i class="bi bi-plus-lg"></i> Agregar</a>
+        <a href="{% url 'equipo_duplicados' %}" class="btn btn-warning btn-responsive"><i class="bi bi-files"></i> Duplicados</a>
     </div>
 </div>
 
+<p class="d-md-none mb-2">
+    <button class="btn btn-outline-primary btn-responsive w-100" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosCollapse" aria-expanded="{% if q or f_marca or f_modelo or f_unidad_str or f_municipio or f_estado %}true{% else %}false{% endif %}">
+        <i class="bi bi-funnel"></i> <span id="filtrosToggle">{% if q or f_marca or f_modelo or f_unidad_str or f_municipio or f_estado %}Ocultar{% else %}Mostrar{% endif %} filtros</span>
+    </button>
+</p>
+
+<div class="collapse {% if q or f_marca or f_modelo or f_unidad_str or f_municipio or f_estado %}show{% endif %} d-md-block" id="filtrosCollapse">
 <form method="GET" class="row g-2 mb-3 align-items-end">
     <div class="col-md-4">
         <label class="form-label small text-muted mb-1">Buscar texto</label>
@@ -35,8 +42,8 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">Unidad de salud <span class="text-info">(clic para seleccionar)</span></label>
-        <select name="unidad" class="form-select click-select" multiple size="6">
+        <label class="form-label small text-muted mb-1">Unidad de salud <span class="text-info d-none d-md-inline">(clic para seleccionar)</span></label>
+        <select name="unidad" class="form-select click-select" multiple size="4">
             {% for u in unidades %}
                 <option value="{{ u }}" {% if u in f_unidad %}selected{% endif %}>{{ u }}</option>
             {% endfor %}
@@ -61,12 +68,13 @@
         </select>
     </div>
     <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
+        <button type="submit" class="btn btn-primary flex-fill btn-responsive"><i class="bi bi-search"></i> Filtrar</button>
         {% if q or f_marca or f_modelo or f_unidad_str or f_municipio or f_estado %}
-        <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary flex-fill">Limpiar</a>
+        <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary flex-fill btn-responsive">Limpiar</a>
         {% endif %}
     </div>
 </form>
+</div>
 
 {% if hospitales %}
 <div class="mb-4">
@@ -79,7 +87,7 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 small">
+                <table class="table table-hover align-middle mb-0 small table-card-list">
                     <thead class="table-light">
                         <tr>
                             <th>Equipo</th>
@@ -87,13 +95,13 @@
                             <th>Modelo</th>
                             <th>Serie</th>
                             <th class="text-center">Estado</th>
-                            <th></th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for eq in equipos %}
                         <tr class="{% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}table-success{% endif %}">
-                            <td>
+                            <td data-label="Equipo">
                                 <a href="{% url 'equipo_ubicacion' eq.pk %}" class="text-decoration-none">
                                     <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
                                 </a>
@@ -104,10 +112,10 @@
                                     <br><span class="badge bg-success mt-1"><i class="bi bi-geo-alt"></i> En préstamo</span>
                                 {% endif %}
                             </td>
-                            <td>{{ eq.marca|default:"-" }}</td>
-                            <td>{{ eq.modelo|default:"-" }}</td>
-                            <td><code>{{ eq.numero_serie|default:"-" }}</code></td>
-                            <td class="text-center">
+                            <td data-label="Marca">{{ eq.marca|default:"-" }}</td>
+                            <td data-label="Modelo">{{ eq.modelo|default:"-" }}</td>
+                            <td data-label="Serie"><code>{{ eq.numero_serie|default:"-" }}</code></td>
+                            <td data-label="Estado" class="text-center badge-cell">
                                 {% if eq.estado == 'Funcionando' %}
                                     <span class="badge bg-success">Funcionando</span>
                                 {% elif eq.estado == 'Afectado' %}
@@ -118,16 +126,18 @@
                                     <span class="badge bg-secondary">—</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center" style="white-space:nowrap">
-                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="btn btn-sm btn-outline-success" title="Ubicación" aria-label="Ubicación {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-geo-alt"></i>
-                                </a>
-                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                            <td data-label="" class="text-center action-cell">
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones {{ eq.denominacion|default:eq.tipo }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="{% url 'equipo_ubicacion' eq.pk %}"><i class="bi bi-geo-alt text-success"></i> Ubicación</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'equipo_update' eq.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="{% url 'equipo_delete' eq.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
+                                    </ul>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -151,7 +161,7 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 small">
+                <table class="table table-hover align-middle mb-0 small table-card-list">
                     <thead class="table-light">
                         <tr>
                             <th>Hospital / Unidad</th>
@@ -159,14 +169,14 @@
                             <th>Marca</th>
                             <th>Modelo</th>
                             <th class="text-center">Estado</th>
-                            <th></th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for eq in equipos %}
                         <tr class="{% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}table-success{% endif %}">
-                            <td>{{ eq.unidad_salud|default:"-" }}</td>
-                            <td>
+                            <td data-label="Unidad">{{ eq.unidad_salud|default:"-" }}</td>
+                            <td data-label="Equipo">
                                 <a href="{% url 'equipo_ubicacion' eq.pk %}" class="text-decoration-none">
                                     <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
                                 </a>
@@ -174,9 +184,9 @@
                                     <br><span class="badge bg-success mt-1"><i class="bi bi-geo-alt"></i> En préstamo</span>
                                 {% endif %}
                             </td>
-                            <td>{{ eq.marca|default:"-" }}</td>
-                            <td>{{ eq.modelo|default:"-" }}</td>
-                            <td class="text-center">
+                            <td data-label="Marca">{{ eq.marca|default:"-" }}</td>
+                            <td data-label="Modelo">{{ eq.modelo|default:"-" }}</td>
+                            <td data-label="Estado" class="text-center badge-cell">
                                 {% if eq.estado == 'Funcionando' %}
                                     <span class="badge bg-success">Funcionando</span>
                                 {% elif eq.estado == 'Afectado' %}
@@ -187,16 +197,18 @@
                                     <span class="badge bg-secondary">—</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center" style="white-space:nowrap">
-                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="btn btn-sm btn-outline-success" title="Ubicación" aria-label="Ubicación {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-geo-alt"></i>
-                                </a>
-                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                            <td data-label="" class="text-center action-cell">
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones {{ eq.denominacion|default:eq.tipo }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="{% url 'equipo_ubicacion' eq.pk %}"><i class="bi bi-geo-alt text-success"></i> Ubicación</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'equipo_update' eq.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="{% url 'equipo_delete' eq.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
+                                    </ul>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -215,7 +227,7 @@
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 small">
+                <table class="table table-hover align-middle mb-0 small table-card-list">
                     <thead class="table-light">
                         <tr>
                             <th>Unidad</th>
@@ -223,14 +235,14 @@
                             <th>Marca</th>
                             <th>Modelo</th>
                             <th class="text-center">Estado</th>
-                            <th></th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for eq in sin_municipio %}
                         <tr class="{% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}table-success{% endif %}">
-                            <td>{{ eq.unidad_salud|default:"-" }}</td>
-                            <td>
+                            <td data-label="Unidad">{{ eq.unidad_salud|default:"-" }}</td>
+                            <td data-label="Equipo">
                                 <a href="{% url 'equipo_ubicacion' eq.pk %}" class="text-decoration-none">
                                     <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
                                 </a>
@@ -238,9 +250,9 @@
                                     <br><span class="badge bg-success mt-1"><i class="bi bi-geo-alt"></i> En préstamo</span>
                                 {% endif %}
                             </td>
-                            <td>{{ eq.marca|default:"-" }}</td>
-                            <td>{{ eq.modelo|default:"-" }}</td>
-                            <td class="text-center">
+                            <td data-label="Marca">{{ eq.marca|default:"-" }}</td>
+                            <td data-label="Modelo">{{ eq.modelo|default:"-" }}</td>
+                            <td data-label="Estado" class="text-center badge-cell">
                                 {% if eq.estado == 'Funcionando' %}
                                     <span class="badge bg-success">Funcionando</span>
                                 {% elif eq.estado == 'Afectado' %}
@@ -251,16 +263,18 @@
                                     <span class="badge bg-secondary">—</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center" style="white-space:nowrap">
-                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="btn btn-sm btn-outline-success" title="Ubicación" aria-label="Ubicación {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-geo-alt"></i>
-                                </a>
-                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                            <td data-label="" class="text-center action-cell">
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones {{ eq.denominacion|default:eq.tipo }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="{% url 'equipo_ubicacion' eq.pk %}"><i class="bi bi-geo-alt text-success"></i> Ubicación</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'equipo_update' eq.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="{% url 'equipo_delete' eq.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
+                                    </ul>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -291,6 +305,31 @@ document.querySelectorAll('.click-select').forEach(function(select) {
             var event = new Event('change', { bubbles: true });
             select.dispatchEvent(event);
         }
+    });
+});
+
+var filtrosBtn = document.querySelector('[data-bs-target="#filtrosCollapse"]');
+var filtrosToggle = document.getElementById('filtrosToggle');
+if (filtrosBtn && filtrosToggle) {
+    filtrosBtn.addEventListener('click', function() {
+        var isOpen = filtrosBtn.getAttribute('aria-expanded') === 'true';
+        filtrosToggle.textContent = isOpen ? 'Mostrar filtros' : 'Ocultar filtros';
+    });
+}
+
+var collapseEl = document.getElementById('filtrosCollapse');
+if (collapseEl) {
+    collapseEl.addEventListener('hidden.bs.collapse', function() {
+        filtrosToggle.textContent = 'Mostrar filtros';
+    });
+    collapseEl.addEventListener('shown.bs.collapse', function() {
+        filtrosToggle.textContent = 'Ocultar filtros';
+    });
+}
+
+document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function(item) {
+    item.addEventListener('click', function(e) {
+        e.stopPropagation();
     });
 });
 </script>

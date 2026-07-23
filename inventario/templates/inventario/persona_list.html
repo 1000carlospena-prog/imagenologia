@@ -10,7 +10,7 @@
             <i class="bi bi-calendar-range"></i> {{ periodo_activo.fecha_inicio|date:'d/m/Y' }} – {{ periodo_activo.fecha_fin|date:'d/m/Y' }}
         </span>
         {% endif %}
-        <a href="{% url 'persona_create' %}" class="btn btn-success btn-sm">
+        <a href="{% url 'persona_create' %}" class="btn btn-success btn-responsive">
             <i class="bi bi-person-plus"></i> Nueva Persona
         </a>
     </div>
@@ -32,7 +32,7 @@
         </form>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle table-card-list">
                 <thead class="table-primary">
                     <tr>
                         <th>Nombre</th>
@@ -48,30 +48,34 @@
                 <tbody>
                     {% for p in personas %}
                     <tr>
-                        <td>
+                        <td data-label="Nombre">
                             <a href="{% url 'persona_detail' p.pk %}" class="text-decoration-none fw-bold">
                                 {{ p.apellido }} {{ p.nombre }}
                             </a>
                         </td>
-                        <td>{{ p.email|default:"-" }}</td>
-                        <td>{{ p.telefono|default:"-" }}</td>
-                        <td class="text-center">
+                        <td data-label="Email">{{ p.email|default:"-" }}</td>
+                        <td data-label="Teléfono">{{ p.telefono|default:"-" }}</td>
+                        <td class="text-center badge-cell" data-label="Estado">
                             {% if p.activo %}
                                 <span class="badge bg-success">Activo</span>
                             {% else %}
                                 <span class="badge bg-secondary">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">{{ p.total_act|default:0 }}</td>
-                        <td class="text-center">{{ p.total_hd|default:0|floatformat:1 }}</td>
-                        <td class="text-center">{{ p.total_he|default:0|floatformat:1 }}</td>
-                        <td class="text-center">
-                            <a href="{% url 'persona_update' p.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ p.nombre }} {{ p.apellido }}">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <a href="{% url 'persona_delete' p.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ p.nombre }} {{ p.apellido }}">
-                                <i class="bi bi-trash"></i>
-                            </a>
+                        <td class="text-center" data-label="Acciones">{{ p.total_act|default:0 }}</td>
+                        <td class="text-center" data-label="H. Trabajadas">{{ p.total_hd|default:0|floatformat:1 }}</td>
+                        <td class="text-center" data-label="H. Extra">{{ p.total_he|default:0|floatformat:1 }}</td>
+                        <td class="text-center action-cell" data-label="">
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'persona_update' p.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="{% url 'persona_delete' p.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
+                                </ul>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

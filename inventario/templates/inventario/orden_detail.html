@@ -15,10 +15,10 @@
         <small class="text-muted">Fecha: {{ orden.fecha|date:"l d F Y" }}</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'orden_update' orden.pk %}" class="btn btn-outline-warning btn-sm">
+        <a href="{% url 'orden_update' orden.pk %}" class="btn btn-outline-warning btn-responsive">
             <i class="bi bi-pencil"></i> Editar
         </a>
-        <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary btn-sm">
+        <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary btn-responsive">
             <i class="bi bi-list"></i> Volver
         </a>
     </div>
@@ -76,7 +76,7 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0 table-card-list">
                         <thead class="table-light">
                             <tr>
                                 <th>Persona</th>
@@ -90,15 +90,20 @@
                         <tbody>
                             {% for a in asignaciones %}
                             <tr>
-                                <td><strong>{{ a.persona.apellido }} {{ a.persona.nombre }}</strong></td>
-                                <td>{{ a.fecha|date:"d/m/Y" }}</td>
-                                <td class="text-center">{{ a.acciones }}</td>
-                                <td class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
-                                <td class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
-                                <td class="text-center">
-                                    <a href="{% url 'asignacion_delete' a.pk %}" class="btn btn-sm btn-outline-danger" title="Quitar" aria-label="Quitar {{ a.persona.nombre }} {{ a.persona.apellido }}">
-                                        <i class="bi bi-person-x"></i>
-                                    </a>
+                                <td data-label="Persona"><strong>{{ a.persona.apellido }} {{ a.persona.nombre }}</strong></td>
+                                <td data-label="Fecha">{{ a.fecha|date:"d/m/Y" }}</td>
+                                <td data-label="Acciones" class="text-center">{{ a.acciones }}</td>
+                                <td data-label="H. Diurnas" class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
+                                <td data-label="H. Extra" class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
+                                <td data-label="Actions" class="text-center action-cell">
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="{% url 'asignacion_delete' a.pk %}"><i class="bi bi-trash text-danger"></i> Quitar</a></li>
+                                        </ul>
+                                    </div>
                                 </td>
                             </tr>
                             {% empty %}
