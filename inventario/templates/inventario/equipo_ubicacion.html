@@ -1,0 +1,111 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Ubicación temporal - {{ equipo.denominacion|default:equipo.tipo }} - Imagenología{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-geo-alt"></i> Ubicación temporal del equipo</h4>
+                <a href="{% url 'equipo_update' equipo.pk %}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <th class="text-muted">Equipo</th>
+                                <td>{{ equipo.denominacion|default:equipo.tipo }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Serie</th>
+                                <td>{{ equipo.numero_serie|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Marca</th>
+                                <td>{{ equipo.marca|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Modelo</th>
+                                <td>{{ equipo.modelo|default:"-" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <th class="text-muted">Municipio origen</th>
+                                <td>{{ equipo.municipio|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Unidad origen</th>
+                                <td>{{ equipo.unidad_salud|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Local</th>
+                                <td>{{ equipo.local|default:"-" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-success h-100">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="bi bi-geo-alt-fill"></i> Ubicación temporal</h6>
+                            </div>
+                            <div class="card-body">
+                                {% if equipo.ubicacion_temporal_municipio or equipo.ubicacion_temporal_unidad %}
+                                <table class="table table-sm mb-0">
+                                    <tr>
+                                        <th class="text-muted">Municipio</th>
+                                        <td>{{ equipo.ubicacion_temporal_municipio }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-muted">Unidad / Hospital</th>
+                                        <td>{{ equipo.ubicacion_temporal_unidad }}</td>
+                                    </tr>
+                                </table>
+                                <div class="mt-2">
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Préstamo temporal</span>
+                                </div>
+                                {% else %}
+                                <p class="text-muted mb-0 text-center">
+                                    <i class="bi bi-check-circle fs-3 d-block text-success"></i>
+                                    El equipo está en su ubicación de origen
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-secondary h-100">
+                            <div class="card-header bg-secondary text-white">
+                                <h6 class="mb-0"><i class="bi bi-sticky"></i> Nota interna</h6>
+                            </div>
+                            <div class="card-body">
+                                {% if equipo.nota_interna %}
+                                <p class="mb-0">{{ equipo.nota_interna|linebreaks }}</p>
+                                {% else %}
+                                <p class="text-muted mb-0 text-center">Sin notas</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver a equipos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

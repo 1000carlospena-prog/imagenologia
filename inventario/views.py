@@ -694,6 +694,22 @@ def equipo_list(request):
     return render(request, 'inventario/equipo_list.html', context)
 
 
+def _equipo_choices():
+    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
+    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+    municipios = Equipo.objects.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
+    return estados, unidades, municipios
+
+
+def equipo_ubicacion(request, pk):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    equipo = get_object_or_404(Equipo, pk=pk)
+    return render(request, 'inventario/equipo_ubicacion.html', {
+        'equipo': equipo,
+    })
+
+
 def equipo_create(request):
     if request.method == 'POST':
         form = EquipoForm(request.POST)
@@ -703,9 +719,11 @@ def equipo_create(request):
             return redirect('equipo_list')
     else:
         form = EquipoForm()
-    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
-    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': True, 'estados': estados, 'unidades': unidades})
+    estados, unidades, municipios = _equipo_choices()
+    return render(request, 'inventario/equipo_form.html', {
+        'form': form, 'crear': True, 'estados': estados,
+        'unidades': unidades, 'municipios': municipios,
+    })
 
 
 def equipo_update(request, pk):
@@ -720,9 +738,11 @@ def equipo_update(request, pk):
             return redirect('equipo_list')
     else:
         form = EquipoForm(instance=equipo)
-    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
-    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': False, 'equipo': equipo, 'estados': estados, 'unidades': unidades})
+    estados, unidades, municipios = _equipo_choices()
+    return render(request, 'inventario/equipo_form.html', {
+        'form': form, 'crear': False, 'equipo': equipo,
+        'estados': estados, 'unidades': unidades, 'municipios': municipios,
+    })
 
 
 def equipo_delete(request, pk):

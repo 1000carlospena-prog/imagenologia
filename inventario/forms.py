@@ -154,7 +154,9 @@ class EquipoForm(forms.ModelForm):
     class Meta:
         model = Equipo
         fields = ['municipio', 'unidad_salud', 'tipo', 'denominacion', 'servicio',
-                  'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones', 'frecuencia']
+                  'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones',
+                  'frecuencia', 'ubicacion_temporal_municipio', 'ubicacion_temporal_unidad',
+                  'nota_interna']
         widgets = {
             'municipio': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
             'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-sugerencias', 'autocomplete': 'off'}),
@@ -168,6 +170,9 @@ class EquipoForm(forms.ModelForm):
             'estado': forms.TextInput(attrs={'class': 'form-control', 'list': 'estado-sugerencias', 'autocomplete': 'off'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
             'frecuencia': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'ubicacion_temporal_municipio': forms.TextInput(attrs={'class': 'form-control', 'list': 'municipio-temporal-sugerencias', 'autocomplete': 'off'}),
+            'ubicacion_temporal_unidad': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-temporal-sugerencias', 'autocomplete': 'off'}),
+            'nota_interna': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
         }
 
 

@@ -128,6 +128,9 @@ class Equipo(models.Model):
     observaciones = models.TextField('Observaciones', blank=True)
     frecuencia = models.CharField('Frecuencia de mantenimiento', max_length=200, blank=True)
     fuente = models.CharField('Archivo fuente', max_length=100, blank=True)
+    ubicacion_temporal_municipio = models.CharField('Municipio temporal', max_length=300, blank=True)
+    ubicacion_temporal_unidad = models.CharField('Unidad temporal', max_length=500, blank=True)
+    nota_interna = models.TextField('Nota interna', blank=True)
     fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
 
     class Meta:

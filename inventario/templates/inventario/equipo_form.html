@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-md-10">
         <div class="card shadow-sm">
             <div class="card-header bg-primary text-white">
                 <h4 class="mb-0"><i class="bi {% if crear %}bi-plus-circle{% else %}bi-pencil{% endif %}"></i>
@@ -12,8 +12,11 @@
             <div class="card-body">
                 <form method="POST">
                     {% csrf_token %}
-                    <div class="row g-3">
+
+                    <h6 class="text-primary border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> Datos del equipo</h6>
+                    <div class="row g-3 mb-4">
                         {% for field in form %}
+                            {% if field.name not in 'ubicacion_temporal_municipio,ubicacion_temporal_unidad,nota_interna' %}
                             <div class="col-md-6">
                                 <label for="{{ field.id_for_label }}" class="form-label small fw-semibold">{{ field.label }}</label>
                                 {{ field }}
@@ -21,13 +24,52 @@
                                     <div class="text-danger small">{{ field.errors|striptags }}</div>
                                 {% endif %}
                             </div>
+                            {% endif %}
                         {% endfor %}
                     </div>
+
+                    <h6 class="text-success border-bottom pb-2 mb-3"><i class="bi bi-geo-alt"></i> Ubicación temporal (préstamo)</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="{{ form.ubicacion_temporal_municipio.id_for_label }}" class="form-label small fw-semibold">{{ form.ubicacion_temporal_municipio.label }}</label>
+                            {{ form.ubicacion_temporal_municipio }}
+                            {% if form.ubicacion_temporal_municipio.errors %}
+                                <div class="text-danger small">{{ form.ubicacion_temporal_municipio.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.ubicacion_temporal_unidad.id_for_label }}" class="form-label small fw-semibold">{{ form.ubicacion_temporal_unidad.label }}</label>
+                            {{ form.ubicacion_temporal_unidad }}
+                            {% if form.ubicacion_temporal_unidad.errors %}
+                                <div class="text-danger small">{{ form.ubicacion_temporal_unidad.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label for="{{ form.nota_interna.id_for_label }}" class="form-label small fw-semibold">{{ form.nota_interna.label }}</label>
+                            {{ form.nota_interna }}
+                            <div class="form-text">Nota visible solo al editar el equipo (no aparece en la lista general)</div>
+                            {% if form.nota_interna.errors %}
+                                <div class="text-danger small">{{ form.nota_interna.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <datalist id="estado-sugerencias">
                         {% for e in estados %}
                             <option value="{{ e }}">
                         {% endfor %}
                     </datalist>
+                    <datalist id="municipio-temporal-sugerencias">
+                        {% for m in municipios %}
+                            <option value="{{ m }}">
+                        {% endfor %}
+                    </datalist>
+                    <datalist id="unidad-temporal-sugerencias">
+                        {% for u in unidades %}
+                            <option value="{{ u }}">
+                        {% endfor %}
+                    </datalist>
+
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg"></i> {% if crear %}Crear{% else %}Guardar{% endif %}

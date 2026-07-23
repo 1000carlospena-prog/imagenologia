@@ -92,11 +92,16 @@
                     </thead>
                     <tbody>
                         {% for eq in equipos %}
-                        <tr>
+                        <tr class="{% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}table-success{% endif %}">
                             <td>
-                                <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
+                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="text-decoration-none">
+                                    <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
+                                </a>
                                 {% if eq.observaciones %}
                                     <br><span class="text-muted">{{ eq.observaciones|truncatechars:60 }}</span>
+                                {% endif %}
+                                {% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}
+                                    <br><span class="badge bg-success mt-1"><i class="bi bi-geo-alt"></i> En préstamo</span>
                                 {% endif %}
                             </td>
                             <td>{{ eq.marca|default:"-" }}</td>
@@ -114,6 +119,9 @@
                                 {% endif %}
                             </td>
                             <td class="text-center" style="white-space:nowrap">
+                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="btn btn-sm btn-outline-success" title="Ubicación" aria-label="Ubicación {{ eq.denominacion|default:eq.tipo }}">
+                                    <i class="bi bi-geo-alt"></i>
+                                </a>
                                 <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
@@ -156,9 +164,16 @@
                     </thead>
                     <tbody>
                         {% for eq in equipos %}
-                        <tr>
+                        <tr class="{% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}table-success{% endif %}">
                             <td>{{ eq.unidad_salud|default:"-" }}</td>
-                            <td><strong>{{ eq.denominacion|default:eq.tipo }}</strong></td>
+                            <td>
+                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="text-decoration-none">
+                                    <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
+                                </a>
+                                {% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}
+                                    <br><span class="badge bg-success mt-1"><i class="bi bi-geo-alt"></i> En préstamo</span>
+                                {% endif %}
+                            </td>
                             <td>{{ eq.marca|default:"-" }}</td>
                             <td>{{ eq.modelo|default:"-" }}</td>
                             <td class="text-center">
@@ -173,6 +188,9 @@
                                 {% endif %}
                             </td>
                             <td class="text-center" style="white-space:nowrap">
+                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="btn btn-sm btn-outline-success" title="Ubicación" aria-label="Ubicación {{ eq.denominacion|default:eq.tipo }}">
+                                    <i class="bi bi-geo-alt"></i>
+                                </a>
                                 <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
@@ -210,9 +228,16 @@
                     </thead>
                     <tbody>
                         {% for eq in sin_municipio %}
-                        <tr>
+                        <tr class="{% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}table-success{% endif %}">
                             <td>{{ eq.unidad_salud|default:"-" }}</td>
-                            <td><strong>{{ eq.denominacion|default:eq.tipo }}</strong></td>
+                            <td>
+                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="text-decoration-none">
+                                    <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
+                                </a>
+                                {% if eq.ubicacion_temporal_municipio or eq.ubicacion_temporal_unidad %}
+                                    <br><span class="badge bg-success mt-1"><i class="bi bi-geo-alt"></i> En préstamo</span>
+                                {% endif %}
+                            </td>
                             <td>{{ eq.marca|default:"-" }}</td>
                             <td>{{ eq.modelo|default:"-" }}</td>
                             <td class="text-center">
@@ -227,6 +252,9 @@
                                 {% endif %}
                             </td>
                             <td class="text-center" style="white-space:nowrap">
+                                <a href="{% url 'equipo_ubicacion' eq.pk %}" class="btn btn-sm btn-outline-success" title="Ubicación" aria-label="Ubicación {{ eq.denominacion|default:eq.tipo }}">
+                                    <i class="bi bi-geo-alt"></i>
+                                </a>
                                 <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
