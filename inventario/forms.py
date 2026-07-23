@@ -27,9 +27,10 @@ class OrdenTrabajoForm(forms.ModelForm):
             'descripcion': forms.Textarea(attrs={
                 'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción de la orden...', 'autocomplete': 'off'
             }),
-            'fecha': forms.DateInput(attrs={
-                'class': 'form-control', 'type': 'date', 'autocomplete': 'off'
-            }),
+            'fecha': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}
+            ),
             'completada': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
@@ -40,7 +41,7 @@ class AsignacionForm(forms.ModelForm):
         fields = ['persona', 'fecha', 'acciones', 'horas_diurnas', 'horas_extras']
         widgets = {
             'persona': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
-            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}),
+            'fecha': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}),
             'acciones': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'autocomplete': 'off'}),
             'horas_diurnas': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5, 'autocomplete': 'off'}),
             'horas_extras': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5, 'autocomplete': 'off'}),
@@ -106,14 +107,14 @@ class ParteTrabajoForm(forms.ModelForm):
                 'class': 'form-control', 'min': 0,
                 'id': 'id_cantidad_equipos'
             }),
-            'fecha_inicio': forms.DateInput(attrs={
-                'class': 'form-control', 'type': 'date',
-                'id': 'id_fecha_inicio'
-            }),
-            'fecha_fin': forms.DateInput(attrs={
-                'class': 'form-control', 'type': 'date',
-                'id': 'id_fecha_fin'
-            }),
+            'fecha_inicio': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={'class': 'form-control', 'type': 'date', 'id': 'id_fecha_inicio'}
+            ),
+            'fecha_fin': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={'class': 'form-control', 'type': 'date', 'id': 'id_fecha_fin'}
+            ),
         }
 
     def __init__(self, *args, **kwargs):

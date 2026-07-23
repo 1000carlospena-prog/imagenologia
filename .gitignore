@@ -29,4 +29,7 @@ media/uploads/
 Thumbs.db
 .DS_Store
 
+# Local scripts
+fix_municipio.py
+
 
