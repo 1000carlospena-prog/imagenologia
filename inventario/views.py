@@ -65,7 +65,7 @@ def logout_view(request):
 
 
 def select_persona(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     if request.user.is_superuser:
         return redirect('admin_panel')
@@ -106,7 +106,7 @@ def select_persona(request):
 
 
 def dashboard(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     persona_id = request.session.get('persona_id')
 
@@ -269,7 +269,7 @@ def persona_delete(request, pk):
 
 
 def persona_detail(request, pk):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
     periodo = _get_periodo_activo(request)
@@ -492,7 +492,7 @@ def asignacion_delete(request, pk):
 
 
 def generar_orden(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     persona_id = request.session.get('persona_id')
     try:
@@ -576,7 +576,7 @@ def generar_orden(request):
 
 
 def parte_update(request, pk):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     parte = get_object_or_404(ParteTrabajo, pk=pk)
     persona_id = request.session.get('persona_id')
@@ -720,7 +720,7 @@ def _equipo_choices():
 
 
 def equipo_ubicacion(request, pk):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     equipo = get_object_or_404(Equipo, pk=pk)
     return render(request, 'inventario/equipo_ubicacion.html', {
@@ -814,7 +814,7 @@ def equipo_duplicados(request):
 
 
 def periodo_list(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     periodos = Periodo.objects.all()
     return render(request, 'inventario/periodo_list.html', {
@@ -823,7 +823,7 @@ def periodo_list(request):
 
 
 def periodo_create(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     if request.method == 'POST':
         fi = request.POST.get('fecha_inicio', '')
@@ -846,7 +846,7 @@ def periodo_create(request):
 
 
 def periodo_delete(request, pk):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     periodo = get_object_or_404(Periodo, pk=pk)
 
@@ -879,7 +879,7 @@ def periodo_delete(request, pk):
 
 
 def historial(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and not request.session.get('is_visitor'):
         return redirect('login')
     logs = Auditoria.objects.select_related('usuario').all()
     paginator = Paginator(logs, 50)
