@@ -358,13 +358,24 @@ def orden_list(request):
             'personas_str': personas_str,
         }
 
+    periodo = _get_periodo_activo(request)
+    if periodo:
+        p_inicio, p_fin = periodo.fecha_inicio, periodo.fecha_fin
+    else:
+        p_inicio = p_fin = None
+
+    def sort_key(item):
+        f = item['fecha']
+        if p_inicio and p_fin and p_inicio <= f <= p_fin:
+            return (0, -f.toordinal())
+        return (1, -f.toordinal())
+
     items = sorted(
         chain(
             (orden_to_item(o) for o in ordenes_qs),
             (parte_to_item(p) for p in partes_qs),
         ),
-        key=lambda x: x['fecha'],
-        reverse=True,
+        key=sort_key,
     )
 
     paginator = Paginator(items, 20)
@@ -642,7 +653,8 @@ def equipo_create(request):
     else:
         form = EquipoForm()
     estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': True, 'estados': estados})
+    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': True, 'estados': estados, 'unidades': unidades})
 
 
 def equipo_update(request, pk):
@@ -658,7 +670,8 @@ def equipo_update(request, pk):
     else:
         form = EquipoForm(instance=equipo)
     estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': False, 'equipo': equipo, 'estados': estados})
+    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': False, 'equipo': equipo, 'estados': estados, 'unidades': unidades})
 
 
 def equipo_delete(request, pk):

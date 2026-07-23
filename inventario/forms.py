@@ -157,7 +157,7 @@ class EquipoForm(forms.ModelForm):
                   'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones', 'frecuencia']
         widgets = {
             'municipio': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
-            'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-sugerencias', 'autocomplete': 'off'}),
             'tipo': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             'denominacion': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
             'servicio': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
