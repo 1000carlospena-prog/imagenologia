@@ -937,5 +937,6 @@ def visitar(request, uuid_code):
     enlace.save(update_fields=['usado', 'fecha_uso'])
     request.session['is_visitor'] = True
     request.session['visitor_link_id'] = enlace.pk
+    request.session.save()
     messages.info(request, 'Modo visita — solo puedes ver la información, no editarla.')
-    return redirect('dashboard')
+    return dashboard(request)
