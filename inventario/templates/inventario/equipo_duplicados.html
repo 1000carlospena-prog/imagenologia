@@ -8,19 +8,27 @@
 </div>
 
 {% if grupos %}
+<form method="POST" id="form-duplicados">
+    {% csrf_token %}
     {% for grupo in grupos %}
     <div class="card shadow-sm mb-3 border-warning">
-        <div class="card-header bg-warning bg-opacity-10 py-2">
+        <div class="card-header bg-warning bg-opacity-10 py-2 d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-bold">
                 <i class="bi bi-upc-scan"></i> {{ grupo.numero_serie }}
                 <span class="badge bg-warning text-dark ms-2">{{ grupo.count }} equipos</span>
             </h6>
+            <div>
+                <input class="form-check-input" type="checkbox" id="sel-all-{{ forloop.counter }}"
+                       onclick="toggleGroup(this, 'grupo-{{ forloop.counter }}')">
+                <label class="form-check-label small text-muted" for="sel-all-{{ forloop.counter }}">Todo on/off</label>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 small">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:40px">On/Off</th>
                             <th>Unidad</th>
                             <th>Equipo</th>
                             <th>Marca</th>
@@ -33,6 +41,10 @@
                     <tbody>
                         {% for eq in grupo.equipos %}
                         <tr>
+                            <td class="text-center">
+                                <input class="form-check-input grupo-{{ forloop.parentloop.counter }}"
+                                       type="checkbox" name="seleccionados" value="{{ eq.pk }}">
+                            </td>
                             <td>{{ eq.unidad_salud|default:"-" }}</td>
                             <td><strong>{{ eq.denominacion|default:eq.tipo }}</strong></td>
                             <td>{{ eq.marca|default:"-" }}</td>
@@ -49,12 +61,9 @@
                                 {% endif %}
                             </td>
                             <td><small class="text-muted">{{ eq.fuente }}</small></td>
-                            <td class="text-center" style="white-space:nowrap">
+                            <td class="text-center">
                                 <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
-                                    <i class="bi bi-trash"></i>
                                 </a>
                             </td>
                         </tr>
@@ -65,14 +74,27 @@
         </div>
     </div>
     {% endfor %}
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Eliminar los equipos seleccionados?')">
+            <i class="bi bi-trash"></i> Eliminar seleccionados
+        </button>
+        <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver a equipos</a>
+    </div>
+</form>
+
+<script>
+function toggleGroup(master, groupClass) {
+    document.querySelectorAll('.' + groupClass).forEach(cb => cb.checked = master.checked);
+}
+</script>
 {% else %}
 <div class="text-center text-muted py-5">
     <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
     No hay equipos con número de serie duplicado
 </div>
-{% endif %}
-
 <div class="mt-3">
     <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver a equipos</a>
 </div>
+{% endif %}
 {% endblock %}

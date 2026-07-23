@@ -612,6 +612,20 @@ def equipo_delete(request, pk):
 
 def equipo_duplicados(request):
     from django.db.models import Count
+
+    if request.method == 'POST':
+        ids = request.POST.getlist('seleccionados')
+        if ids:
+            eliminados = Equipo.objects.filter(pk__in=ids)
+            count = eliminados.count()
+            desc = ', '.join(str(e) for e in eliminados)
+            eliminados.delete()
+            _auditar(request, 'eliminar', 'Equipo(s)', 0, f'Eliminados en lote: {desc}')
+            messages.success(request, f'{count} equipo(s) eliminado(s).')
+        else:
+            messages.warning(request, 'No seleccionaste ningún equipo.')
+        return redirect('equipo_duplicados')
+
     dups = Equipo.objects.values('numero_serie').exclude(numero_serie='').annotate(
         count=Count('id')
     ).filter(count__gt=1).order_by('-count')
