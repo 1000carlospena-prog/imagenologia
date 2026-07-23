@@ -1,0 +1,157 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Editar parte - Imagenología{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-pencil"></i> Editar parte #{{ parte.pk }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="ordenForm">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small">
+                            {% for error in form.non_field_errors %}
+                                <i class="bi bi-exclamation-triangle"></i> {{ error }}<br>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-check2-square"></i> Acciones por equipo
+                            </label>
+                            {{ form.acciones }}
+                            <div class="form-text">Selecciona entre 1 y 10</div>
+                            {% if form.acciones.errors %}
+                                <div class="text-danger small">{{ form.acciones.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-tools"></i> Cantidad de equipos
+                            </label>
+                            {{ form.cantidad_equipos }}
+                            {% if form.cantidad_equipos.errors %}
+                                <div class="text-danger small">{{ form.cantidad_equipos.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold text-success">
+                                <i class="bi bi-calculator"></i> Total acciones
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light fw-bold" id="totalAccionesDisplay">{{ parte.total_acciones }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-calendar-start"></i> Desde
+                            </label>
+                            {{ form.fecha_inicio }}
+                            {% if form.fecha_inicio.errors %}
+                                <div class="text-danger small">{{ form.fecha_inicio.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.fecha_fin.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-calendar-end"></i> Hasta
+                            </label>
+                            {{ form.fecha_fin }}
+                            {% if form.fecha_fin.errors %}
+                                <div class="text-danger small">{{ form.fecha_fin.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-clock"></i> Horas trabajadas
+                            </label>
+                            {{ form.horas_trabajadas }}
+                            {% if form.horas_trabajadas.errors %}
+                                <div class="text-danger small">{{ form.horas_trabajadas.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-moon-stars"></i> Horas extra
+                            </label>
+                            {{ form.horas_extras }}
+                            {% if form.horas_extras.errors %}
+                                <div class="text-danger small">{{ form.horas_extras.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-people"></i> Personas que trabajaron
+                        </label>
+                        <div class="card bg-light border-0">
+                            <div class="card-body py-2 px-3">
+                                <div class="row g-2">
+                                    {% for persona in form.personas.field.queryset %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" name="personas" value="{{ persona.pk }}"
+                                                       id="id_personas_{{ persona.pk }}"
+                                                       class="form-check-input"
+                                                       {% if persona.pk in form.personas.value %}checked{% endif %}>
+                                                <label class="form-check-label" for="id_personas_{{ persona.pk }}">
+                                                    {{ persona.apellido }} {{ persona.nombre }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% if form.personas.errors %}
+                            <div class="text-danger small mt-1">{{ form.personas.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> Guardar cambios
+                        </button>
+                        <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var accionesInput = document.getElementById('id_acciones');
+    var equiposInput = document.getElementById('id_cantidad_equipos');
+    var totalDisplay = document.getElementById('totalAccionesDisplay');
+
+    function calcTotal() {
+        var a = parseInt(accionesInput.value) || 0;
+        var e = parseInt(equiposInput.value) || 0;
+        totalDisplay.textContent = a * e;
+    }
+
+    accionesInput.addEventListener('input', calcTotal);
+    equiposInput.addEventListener('input', calcTotal);
+});
+</script>
+{% endblock %}

@@ -563,6 +563,58 @@ def generar_orden(request):
     })
 
 
+def parte_update(request, pk):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    parte = get_object_or_404(ParteTrabajo, pk=pk)
+    persona_id = request.session.get('persona_id')
+    try:
+        persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
+    except Persona.DoesNotExist:
+        persona_actual = None
+
+    hoy = timezone.now().date()
+    fecha_max = date(hoy.year, hoy.month, calendar.monthrange(hoy.year, hoy.month)[1])
+    if hoy.month == 1:
+        fecha_min = date(hoy.year - 1, 12, 1)
+    else:
+        fecha_min = date(hoy.year, hoy.month - 1, 1)
+
+    if request.method == 'POST':
+        form = ParteTrabajoForm(request.POST, instance=parte, persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
+        if form.is_valid():
+            parte = form.save()
+            PartePersona.objects.filter(parte=parte).delete()
+            for p in form.cleaned_data['personas']:
+                PartePersona.objects.create(
+                    parte=parte, persona=p,
+                    horas_trabajadas=form.cleaned_data['horas_trabajadas'],
+                    horas_extras=form.cleaned_data['horas_extras'],
+                )
+            messages.success(request, f'Parte #{parte.pk} actualizado correctamente.')
+            return redirect('orden_list')
+    else:
+        initial_hd = None
+        initial_he = None
+        pp = PartePersona.objects.filter(parte=parte).first()
+        if pp:
+            initial_hd = pp.horas_trabajadas
+            initial_he = pp.horas_extras
+        form = ParteTrabajoForm(
+            instance=parte, persona_inicial=persona_actual,
+            fecha_min=fecha_min, fecha_max=fecha_max,
+            initial={
+                'personas': PartePersona.objects.filter(parte=parte).values_list('persona_id', flat=True),
+                'horas_trabajadas': initial_hd,
+                'horas_extras': initial_he,
+            },
+        )
+
+    return render(request, 'inventario/parte_form.html', {
+        'form': form, 'parte': parte, 'accion': 'Editar',
+    })
+
+
 def parte_delete(request, pk):
     parte = get_object_or_404(ParteTrabajo, pk=pk)
     if request.method == 'POST':
