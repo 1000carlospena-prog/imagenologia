@@ -472,6 +472,19 @@ def equipo_list(request):
     return render(request, 'inventario/equipo_list.html', context)
 
 
+def equipo_create(request):
+    if request.method == 'POST':
+        form = EquipoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Equipo creado.')
+            return redirect('equipo_list')
+    else:
+        form = EquipoForm()
+    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
+    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': True, 'estados': estados})
+
+
 def equipo_update(request, pk):
     equipo = get_object_or_404(Equipo, pk=pk)
     if request.method == 'POST':
@@ -483,4 +496,13 @@ def equipo_update(request, pk):
     else:
         form = EquipoForm(instance=equipo)
     estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    return render(request, 'inventario/equipo_form.html', {'form': form, 'equipo': equipo, 'estados': estados})
+    return render(request, 'inventario/equipo_form.html', {'form': form, 'crear': False, 'equipo': equipo, 'estados': estados})
+
+
+def equipo_delete(request, pk):
+    equipo = get_object_or_404(Equipo, pk=pk)
+    if request.method == 'POST':
+        equipo.delete()
+        messages.success(request, 'Equipo eliminado.')
+        return redirect('equipo_list')
+    return render(request, 'inventario/equipo_confirm_delete.html', {'equipo': equipo})

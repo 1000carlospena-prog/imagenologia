@@ -22,5 +22,7 @@ urlpatterns = [
     path('select-persona/', views.select_persona, name='select_persona'),
     path('generar-orden/', views.generar_orden, name='generar_orden'),
     path('equipos/', views.equipo_list, name='equipo_list'),
+    path('equipos/nuevo/', views.equipo_create, name='equipo_create'),
     path('equipos/<int:pk>/editar/', views.equipo_update, name='equipo_update'),
+    path('equipos/<int:pk>/eliminar/', views.equipo_delete, name='equipo_delete'),
 ]

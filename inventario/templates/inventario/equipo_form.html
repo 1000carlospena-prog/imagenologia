@@ -1,12 +1,13 @@
 {% extends 'inventario/base.html' %}
-{% block title %}Editar equipo - Imagenología{% endblock %}
+{% block title %}{% if crear %}Nuevo equipo{% else %}Editar equipo{% endif %} - Imagenología{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow-sm">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="bi bi-pencil"></i> Editar equipo</h4>
+                <h4 class="mb-0"><i class="bi {% if crear %}bi-plus-circle{% else %}bi-pencil{% endif %}"></i>
+                    {% if crear %}Nuevo equipo{% else %}Editar equipo{% endif %}</h4>
             </div>
             <div class="card-body">
                 <form method="POST">
@@ -29,7 +30,7 @@
                     </datalist>
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg"></i> Guardar
+                            <i class="bi bi-check-lg"></i> {% if crear %}Crear{% else %}Guardar{% endif %}
                         </button>
                         <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary">
                             <i class="bi bi-x-lg"></i> Cancelar
