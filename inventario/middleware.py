@@ -9,7 +9,7 @@ class VisitorModeMiddleware:
     def __call__(self, request):
         if request.session.get('is_visitor') and request.method == 'POST':
             path = request.path
-            allowed_paths = ['/login/', '/logout/']
+            allowed_paths = ['/login/', '/logout/', '/visitar/']
             if not any(path.startswith(p) for p in allowed_paths):
                 messages.error(request, 'No puedes modificar datos en modo visita.')
                 return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
