@@ -1,0 +1,194 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Equipos - Imagenología{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-tools"></i> Inventario de equipos</h3>
+    <span class="badge bg-secondary fs-6">{{ total }} equipos</span>
+</div>
+
+<form method="GET" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="Buscar por marca, modelo, hospital, municipio..." value="{{ q }}">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            {% if q %}
+                <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary">Limpiar</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+{% if hospitales %}
+<div class="mb-4">
+    <h5 class="text-primary border-bottom pb-2"><i class="bi bi-building"></i> Santiago de Cuba</h5>
+    {% for hospital, equipos in hospitales.items %}
+    <div class="card shadow-sm mb-3 border-0">
+        <div class="card-header bg-white py-2">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-hospital"></i> {{ hospital }}</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Equipo</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Serie</th>
+                            <th class="text-center">Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eq in equipos %}
+                        <tr>
+                            <td>
+                                <strong>{{ eq.denominacion|default:eq.tipo }}</strong>
+                                {% if eq.observaciones %}
+                                    <br><span class="text-muted">{{ eq.observaciones|truncatechars:60 }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ eq.marca|default:"-" }}</td>
+                            <td>{{ eq.modelo|default:"-" }}</td>
+                            <td><code>{{ eq.numero_serie|default:"-" }}</code></td>
+                            <td class="text-center">
+                                {% if eq.estado == 'Funcionando' %}
+                                    <span class="badge bg-success">Funcionando</span>
+                                {% elif eq.estado == 'Afectado' %}
+                                    <span class="badge bg-warning text-dark">Afectado</span>
+                                {% elif eq.estado == 'Roto' %}
+                                    <span class="badge bg-danger">Roto</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if municipios %}
+<div class="mb-4">
+    <h5 class="text-success border-bottom pb-2"><i class="bi bi-geo-alt"></i> Otros municipios</h5>
+    {% for municipio, equipos in municipios.items %}
+    <div class="card shadow-sm mb-3 border-0">
+        <div class="card-header bg-white py-2">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-pin-map"></i> {{ municipio }}</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Hospital / Unidad</th>
+                            <th>Equipo</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th class="text-center">Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eq in equipos %}
+                        <tr>
+                            <td>{{ eq.unidad_salud|default:"-" }}</td>
+                            <td><strong>{{ eq.denominacion|default:eq.tipo }}</strong></td>
+                            <td>{{ eq.marca|default:"-" }}</td>
+                            <td>{{ eq.modelo|default:"-" }}</td>
+                            <td class="text-center">
+                                {% if eq.estado == 'Funcionando' %}
+                                    <span class="badge bg-success">Funcionando</span>
+                                {% elif eq.estado == 'Afectado' %}
+                                    <span class="badge bg-warning text-dark">Afectado</span>
+                                {% elif eq.estado == 'Roto' %}
+                                    <span class="badge bg-danger">Roto</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if sin_municipio %}
+<div class="mb-4">
+    <h5 class="text-muted border-bottom pb-2"><i class="bi bi-question-circle"></i> Sin municipio asignado</h5>
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Unidad</th>
+                            <th>Equipo</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th class="text-center">Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eq in sin_municipio %}
+                        <tr>
+                            <td>{{ eq.unidad_salud|default:"-" }}</td>
+                            <td><strong>{{ eq.denominacion|default:eq.tipo }}</strong></td>
+                            <td>{{ eq.marca|default:"-" }}</td>
+                            <td>{{ eq.modelo|default:"-" }}</td>
+                            <td class="text-center">
+                                {% if eq.estado == 'Funcionando' %}
+                                    <span class="badge bg-success">Funcionando</span>
+                                {% elif eq.estado == 'Afectado' %}
+                                    <span class="badge bg-warning text-dark">Afectado</span>
+                                {% elif eq.estado == 'Roto' %}
+                                    <span class="badge bg-danger">Roto</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if not hospitales and not municipios and not sin_municipio %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+    {% if q %}No se encontraron equipos con "{{ q }}"{% else %}No hay equipos registrados{% endif %}
+</div>
+{% endif %}
+{% endblock %}

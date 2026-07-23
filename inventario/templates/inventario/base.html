@@ -41,6 +41,11 @@
                             <i class="bi bi-file-earmark-text"></i> Órdenes
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'equipo' in request.path %}active{% endif %}" href="{% url 'equipo_list' %}">
+                            <i class="bi bi-tools"></i> Equipos
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav align-items-center">
                     {% if persona_actual %}

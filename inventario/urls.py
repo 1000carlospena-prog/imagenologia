@@ -21,4 +21,6 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('select-persona/', views.select_persona, name='select_persona'),
     path('generar-orden/', views.generar_orden, name='generar_orden'),
+    path('equipos/', views.equipo_list, name='equipo_list'),
+    path('equipos/<int:pk>/editar/', views.equipo_update, name='equipo_update'),
 ]

@@ -7,8 +7,8 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import timedelta, datetime, date
 import calendar
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona
-from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo
+from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
 
 
 def _mes_actual_range():
@@ -400,3 +400,54 @@ def generar_orden(request):
         'fecha_min': fecha_min,
         'fecha_max': fecha_max,
     })
+
+
+def equipo_list(request):
+    q = request.GET.get('q', '')
+    equipos = Equipo.objects.all()
+    if q:
+        equipos = equipos.filter(
+            Q(marca__icontains=q) | Q(municipio__icontains=q) |
+            Q(unidad_salud__icontains=q) | Q(denominacion__icontains=q) |
+            Q(modelo__icontains=q) | Q(numero_serie__icontains=q)
+        )
+
+    santiago = equipos.filter(municipio__icontains='Santiago').order_by('unidad_salud', 'denominacion')
+    otros = equipos.exclude(municipio__icontains='Santiago').filter(municipio__gt='').order_by('municipio', 'unidad_salud')
+    sin_municipio = equipos.filter(municipio='').order_by('unidad_salud')
+
+    hospitales = {}
+    for eq in santiago:
+        hosp = eq.unidad_salud or 'Sin hospital'
+        if hosp not in hospitales:
+            hospitales[hosp] = []
+        hospitales[hosp].append(eq)
+
+    municipios = {}
+    for eq in otros:
+        mun = eq.municipio or 'Sin municipio'
+        if mun not in municipios:
+            municipios[mun] = []
+        municipios[mun].append(eq)
+
+    context = {
+        'hospitales': hospitales,
+        'municipios': municipios,
+        'sin_municipio': sin_municipio,
+        'q': q,
+        'total': equipos.count(),
+    }
+    return render(request, 'inventario/equipo_list.html', context)
+
+
+def equipo_update(request, pk):
+    equipo = get_object_or_404(Equipo, pk=pk)
+    if request.method == 'POST':
+        form = EquipoForm(request.POST, instance=equipo)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Equipo actualizado.')
+            return redirect('equipo_list')
+    else:
+        form = EquipoForm(instance=equipo)
+    return render(request, 'inventario/equipo_form.html', {'form': form, 'equipo': equipo})

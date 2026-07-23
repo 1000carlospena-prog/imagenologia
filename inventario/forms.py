@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
 
 
 class PersonaForm(forms.ModelForm):
@@ -148,6 +148,27 @@ class ParteTrabajoForm(forms.ModelForm):
         if fecha_fin and self.fecha_max and fecha_fin > self.fecha_max:
             raise forms.ValidationError(f'La fecha de fin no puede ser posterior a {self.fecha_max}.')
         return cleaned
+
+
+class EquipoForm(forms.ModelForm):
+    class Meta:
+        model = Equipo
+        fields = ['municipio', 'unidad_salud', 'tipo', 'denominacion', 'servicio',
+                  'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones', 'frecuencia']
+        widgets = {
+            'municipio': forms.TextInput(attrs={'class': 'form-control'}),
+            'unidad_salud': forms.TextInput(attrs={'class': 'form-control'}),
+            'tipo': forms.Select(attrs={'class': 'form-select'}),
+            'denominacion': forms.TextInput(attrs={'class': 'form-control'}),
+            'servicio': forms.TextInput(attrs={'class': 'form-control'}),
+            'local': forms.TextInput(attrs={'class': 'form-control'}),
+            'marca': forms.TextInput(attrs={'class': 'form-control'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control'}),
+            'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
+            'estado': forms.Select(attrs={'class': 'form-select'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'frecuencia': forms.TextInput(attrs={'class': 'form-control'}),
+        }
 
 
 
