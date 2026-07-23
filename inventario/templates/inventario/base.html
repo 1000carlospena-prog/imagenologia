@@ -53,7 +53,7 @@
 
             </ul>
             <ul class="nav nav-pills fb-extra flex-shrink-0">
-                {% if persona_actual %}
+                {% if persona_actual and not user.is_superuser %}
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'select_persona' %}" title="Cambiar usuario" aria-label="Cambiar usuario">
                             <i class="bi bi-person-circle fs-5"></i>
@@ -62,14 +62,26 @@
                 {% endif %}
                 {% if user.is_superuser %}
                     <li class="nav-item">
-                        <a class="nav-link py-1 px-2" href="{% url 'admin:index' %}" target="_blank" aria-label="Administración">
+                        <a class="nav-link py-1 px-2" href="{% url 'admin_panel' %}" aria-label="Panel de administración">
                             <i class="bi bi-shield-lock fs-5"></i>
                         </a>
                     </li>
                 {% endif %}
-                {% if user.is_authenticated %}
+                {% if user.is_authenticated and not is_visitor %}
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'logout' %}" title="Cerrar sesión" aria-label="Cerrar sesión">
+                            <i class="bi bi-box-arrow-right fs-5"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                {% if is_visitor %}
+                    <li class="nav-item">
+                        <span class="nav-link py-1 px-2 text-warning" title="Modo visita">
+                            <i class="bi bi-eye fs-5"></i>
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-2 text-warning" href="{% url 'login' %}" title="Salir del modo visita">
                             <i class="bi bi-box-arrow-right fs-5"></i>
                         </a>
                     </li>
@@ -78,6 +90,11 @@
         </div>
     </nav>
 
+    {% if is_visitor %}
+    <div class="bg-warning text-dark text-center py-1 small fw-bold">
+        <i class="bi bi-eye"></i> Modo visita — solo lectura
+    </div>
+    {% endif %}
     <div class="container-fluid mt-3" id="main-content">
         {% if messages %}
             <div aria-live="polite">

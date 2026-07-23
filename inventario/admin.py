@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Periodo
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Periodo, VisitaLink
 
 
 class AsignacionInline(admin.TabularInline):
@@ -66,3 +66,9 @@ class PartePersonaAdmin(admin.ModelAdmin):
     search_fields = ['persona__nombre', 'persona__apellido']
     autocomplete_fields = ['persona']
     raw_id_fields = ['parte']
+
+
+@admin.register(VisitaLink)
+class VisitaLinkAdmin(admin.ModelAdmin):
+    list_display = ['uuid', 'creado_por', 'usado', 'fecha_creacion', 'fecha_uso']
+    list_filter = ['usado']

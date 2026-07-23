@@ -62,6 +62,7 @@
                             </td>
                             <td data-label="Fuente"><small class="text-muted">{{ eq.fuente }}</small></td>
                             <td data-label="Acciones" class="text-center action-cell">
+                                {% if not is_visitor %}
                                 <div class="dropdown">
                                     <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
                                         <i class="bi bi-three-dots-vertical"></i>
@@ -70,6 +71,7 @@
                                         <li><a class="dropdown-item" href="{% url 'equipo_update' eq.pk %}"><i class="bi bi-pencil text-primary"></i> Editar</a></li>
                                     </ul>
                                 </div>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -81,9 +83,11 @@
     {% endfor %}
 
     <div class="d-flex gap-2 mt-3">
+        {% if not is_visitor %}
         <button type="submit" class="btn btn-danger" onclick="return confirm('¿Eliminar los equipos seleccionados?')">
             <i class="bi bi-trash"></i> Eliminar seleccionados
         </button>
+        {% endif %}
         <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver a equipos</a>
     </div>
 </form>

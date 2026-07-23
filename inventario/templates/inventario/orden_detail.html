@@ -15,9 +15,11 @@
         <small class="text-muted">Fecha: {{ orden.fecha|date:"l d F Y" }}</small>
     </div>
     <div class="d-flex gap-2">
+        {% if not is_visitor %}
         <a href="{% url 'orden_update' orden.pk %}" class="btn btn-outline-warning btn-responsive">
             <i class="bi bi-pencil"></i> Editar
         </a>
+        {% endif %}
         <a href="{% url 'orden_list' %}" class="btn btn-outline-secondary btn-responsive">
             <i class="bi bi-list"></i> Volver
         </a>
@@ -96,6 +98,7 @@
                                 <td data-label="H. Diurnas" class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
                                 <td data-label="H. Extra" class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
                                 <td data-label="Actions" class="text-center action-cell">
+                                    {% if not is_visitor %}
                                     <div class="dropdown">
                                         <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
                                             <i class="bi bi-three-dots-vertical"></i>
@@ -104,6 +107,7 @@
                                             <li><a class="dropdown-item" href="{% url 'asignacion_delete' a.pk %}"><i class="bi bi-trash text-danger"></i> Quitar</a></li>
                                         </ul>
                                     </div>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% empty %}
@@ -132,6 +136,7 @@
         </div>
     </div>
 
+    {% if not is_visitor %}
     <div class="col-lg-4">
         <div class="card shadow-sm">
             <div class="card-header bg-white">
@@ -156,5 +161,6 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

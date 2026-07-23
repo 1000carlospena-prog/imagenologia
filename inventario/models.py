@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -167,6 +168,25 @@ class PartePersona(models.Model):
 
     def __str__(self):
         return f'{self.persona} - Parte {self.parte_id}'
+
+
+class VisitaLink(models.Model):
+    uuid = models.UUIDField('UUID', unique=True, default=uuid.uuid4, editable=False)
+    creado_por = models.ForeignKey(
+        'auth.User', on_delete=models.CASCADE,
+        related_name='enlaces_visita', verbose_name='Creado por'
+    )
+    usado = models.BooleanField('Usado', default=False)
+    fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    fecha_uso = models.DateTimeField('Fecha de uso', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Enlace de visita'
+        verbose_name_plural = 'Enlaces de visita'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f'Visita {self.uuid} {"(usado)" if self.usado else "(activo)"}'
 
 
 class Periodo(models.Model):

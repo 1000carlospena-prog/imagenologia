@@ -10,9 +10,11 @@
             <i class="bi bi-calendar-range"></i> {{ periodo_activo.fecha_inicio|date:'d/m/Y' }} – {{ periodo_activo.fecha_fin|date:'d/m/Y' }}
         </span>
         {% endif %}
+        {% if not is_visitor %}
         <a href="{% url 'persona_create' %}" class="btn btn-success btn-responsive">
             <i class="bi bi-person-plus"></i> Nueva Persona
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -62,6 +64,7 @@
                         <td class="text-center" data-label="H. Trabajadas">{{ p.total_hd|default:0|floatformat:1 }}</td>
                         <td class="text-center" data-label="H. Extra">{{ p.total_he|default:0|floatformat:1 }}</td>
                         <td class="text-center action-cell" data-label="">
+                            {% if not is_visitor %}
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
                                     <i class="bi bi-three-dots-vertical"></i>
@@ -72,6 +75,7 @@
                                     <li><a class="dropdown-item text-danger" href="{% url 'persona_delete' p.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
                                 </ul>
                             </div>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

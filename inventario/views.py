@@ -5,8 +5,10 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 import calendar
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo
+import uuid
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink
 from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
 
 
@@ -65,6 +67,8 @@ def logout_view(request):
 def select_persona(request):
     if not request.user.is_authenticated:
         return redirect('login')
+    if request.user.is_superuser:
+        return redirect('admin_panel')
     if request.method == 'POST':
         if 'persona_id' in request.POST:
             persona_id = request.POST.get('persona_id')
@@ -892,3 +896,46 @@ def historial_clear(request):
         Auditoria.objects.all().delete()
         messages.success(request, f'Historial limpiado ({count} registros eliminados).')
     return redirect('historial')
+
+
+def admin_panel(request):
+    if not request.user.is_superuser:
+        return redirect('login')
+    enlaces = VisitaLink.objects.all()
+    return render(request, 'inventario/admin_panel.html', {
+        'enlaces': enlaces,
+    })
+
+
+def generar_enlace(request):
+    if not request.user.is_superuser:
+        return redirect('login')
+    if request.method == 'POST':
+        VisitaLink.objects.create(creado_por=request.user)
+        messages.success(request, 'Enlace de visita generado.')
+    return redirect('admin_panel')
+
+
+def eliminar_enlace(request, pk):
+    if not request.user.is_superuser:
+        return redirect('login')
+    enlace = get_object_or_404(VisitaLink, pk=pk)
+    if request.method == 'POST':
+        enlace.delete()
+        messages.success(request, 'Enlace eliminado.')
+    return redirect('admin_panel')
+
+
+@xframe_options_sameorigin
+def visitar(request, uuid_code):
+    enlace = get_object_or_404(VisitaLink, uuid=uuid_code)
+    if enlace.usado:
+        messages.error(request, 'Este enlace de visita ya fue usado.')
+        return redirect('login')
+    enlace.usado = True
+    enlace.fecha_uso = timezone.now()
+    enlace.save(update_fields=['usado', 'fecha_uso'])
+    request.session['is_visitor'] = True
+    request.session['visitor_link_id'] = enlace.pk
+    messages.info(request, 'Modo visita — solo puedes ver la información, no editarla.')
+    return redirect('dashboard')

@@ -35,4 +35,8 @@ urlpatterns = [
     path('periodos/<int:pk>/eliminar/', views.periodo_delete, name='periodo_delete'),
     path('historial/', views.historial, name='historial'),
     path('historial/limpiar/', views.historial_clear, name='historial_clear'),
+    path('admin-panel/', views.admin_panel, name='admin_panel'),
+    path('admin-panel/generar-enlace/', views.generar_enlace, name='generar_enlace'),
+    path('admin-panel/eliminar-enlace/<int:pk>/', views.eliminar_enlace, name='eliminar_enlace'),
+    path('visitar/<uuid:uuid_code>/', views.visitar, name='visitar'),
 ]

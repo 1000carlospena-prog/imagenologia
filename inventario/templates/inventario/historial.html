@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0"><i class="bi bi-clock-history"></i> Historial de cambios</h3>
-    {% if user.is_superuser %}
+    {% if not is_visitor and user.is_superuser %}
         <form method="POST" action="{% url 'historial_clear' %}" onsubmit="return confirm('¿Borrar todo el historial? Esta acción no se puede deshacer.');">
             {% csrf_token %}
             <button type="submit" class="btn btn-outline-danger btn-responsive"><i class="bi bi-trash"></i> Limpiar historial</button>

@@ -4,9 +4,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0"><i class="bi bi-calendar-range"></i> Periodos</h3>
+    {% if not is_visitor %}
     <a href="{% url 'periodo_create' %}" class="btn btn-primary btn-responsive">
         <i class="bi bi-plus-lg"></i> Nuevo periodo
     </a>
+    {% endif %}
 </div>
 
 <div class="card shadow-sm">
@@ -32,9 +34,11 @@
                         <td data-label="Acciones total" class="text-center">{{ p.total_acciones }}</td>
                         <td data-label="Creado" class="text-center text-muted small">{{ p.fecha_creacion|date:'d/m/Y H:i' }}</td>
                         <td data-label="Acciones" class="text-center action-cell">
+                            {% if not is_visitor %}
                             <a href="{% url 'periodo_delete' p.pk %}" class="btn btn-outline-danger btn-responsive">
                                 <i class="bi bi-trash"></i>
                             </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

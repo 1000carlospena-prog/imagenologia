@@ -8,9 +8,11 @@
         {% if not persona.activo %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
     </h3>
     <div>
+        {% if not is_visitor %}
         <a href="{% url 'persona_update' persona.pk %}" class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Editar
         </a>
+        {% endif %}
         <a href="{% url 'persona_list' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Volver
         </a>
@@ -81,6 +83,7 @@
                     <td data-label="Horas" class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
                     <td data-label="H. Extra" class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
                     <td data-label="" class="action-cell text-center">
+                        {% if not is_visitor %}
                         <div class="dropdown">
                             <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
                                 <i class="bi bi-three-dots-vertical"></i>
@@ -91,6 +94,7 @@
                                 <li><a class="dropdown-item text-danger" href="{% url 'asignacion_delete' a.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
                             </ul>
                         </div>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -103,6 +107,7 @@
                     <td data-label="Horas" class="text-center">{{ pp.horas_trabajadas|floatformat:1 }}</td>
                     <td data-label="H. Extra" class="text-center">{{ pp.horas_extras|floatformat:1 }}</td>
                     <td data-label="" class="action-cell text-center">
+                        {% if not is_visitor %}
                         <div class="dropdown">
                             <button class="btn btn-outline-secondary table-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Acciones">
                                 <i class="bi bi-three-dots-vertical"></i>
@@ -113,6 +118,7 @@
                                 <li><a class="dropdown-item text-danger" href="{% url 'parte_delete' pp.parte.pk %}"><i class="bi bi-trash"></i> Eliminar</a></li>
                             </ul>
                         </div>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
