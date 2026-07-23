@@ -22,7 +22,7 @@
             <div class="col-md-8">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, apellido, email o teléfono..." value="{{ query }}">
+                    <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o apellido..." value="{{ query }}">
                     <button type="submit" class="btn btn-primary">Buscar</button>
                     {% if query %}
                         <a href="{% url 'persona_list' %}" class="btn btn-outline-secondary">Limpiar</a>
@@ -36,8 +36,6 @@
                 <thead class="table-primary">
                     <tr>
                         <th>Nombre</th>
-                        <th>Email</th>
-                        <th>Teléfono</th>
                         <th class="text-center">Estado</th>
                         <th class="text-center">Acciones</th>
                         <th class="text-center">H. Trabajadas</th>
@@ -53,8 +51,6 @@
                                 {{ p.apellido }} {{ p.nombre }}
                             </a>
                         </td>
-                        <td data-label="Email">{{ p.email|default:"-" }}</td>
-                        <td data-label="Teléfono">{{ p.telefono|default:"-" }}</td>
                         <td class="text-center badge-cell" data-label="Estado">
                             {% if p.activo %}
                                 <span class="badge bg-success">Activo</span>
@@ -80,7 +76,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="6" class="text-center text-muted py-4">
                             <i class="bi bi-inbox fs-3 d-block"></i>
                             {% if query %}No se encontraron personas con "{{ query }}"{% else %}No hay personas registradas{% endif %}
                         </td>

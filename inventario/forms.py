@@ -6,12 +6,10 @@ from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
 class PersonaForm(forms.ModelForm):
     class Meta:
         model = Persona
-        fields = ['nombre', 'apellido', 'email', 'telefono', 'activo']
+        fields = ['nombre', 'apellido', 'activo']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre', 'autocomplete': 'given-name'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido', 'autocomplete': 'family-name'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com', 'autocomplete': 'email'}),
-            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+52 555 555 5555', 'autocomplete': 'tel'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
