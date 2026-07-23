@@ -602,7 +602,6 @@ def parte_update(request, pk):
             initial_he = pp.horas_extras
         form = ParteTrabajoForm(
             instance=parte, persona_inicial=persona_actual,
-            fecha_min=fecha_min, fecha_max=fecha_max,
             initial={
                 'personas': PartePersona.objects.filter(parte=parte).values_list('persona_id', flat=True),
                 'horas_trabajadas': initial_hd,
