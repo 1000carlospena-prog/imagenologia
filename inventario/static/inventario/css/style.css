@@ -1,6 +1,28 @@
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     background-color: #f5f7fa;
-    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+h1, .h1 { font-size: calc(1.6rem + 0.6vw); letter-spacing: -0.03em; }
+h2, .h2 { font-size: calc(1.35rem + 0.4vw); }
+
+p, li, .card-text, .lead {
+    text-wrap: pretty;
+}
+
+td, th, .tabular-nums {
+    font-variant-numeric: tabular-nums;
 }
 
 .navbar-brand {
@@ -10,12 +32,16 @@ body {
 
 .card {
     border: none;
-    border-radius: 10px;
-    transition: transform 0.1s ease;
+    border-radius: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
 }
 
 .card-header {
-    border-radius: 10px 10px 0 0 !important;
+    border-radius: 12px 12px 0 0 !important;
     font-weight: 600;
 }
 
@@ -45,10 +71,24 @@ body {
 
 .btn {
     border-radius: 6px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .form-control, .form-select {
     border-radius: 6px;
+}
+
+:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
 }
 
 .form-control:focus, .form-select:focus {
@@ -73,7 +113,7 @@ body {
 }
 
 .min-vh-100 {
-    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 .table-active {
