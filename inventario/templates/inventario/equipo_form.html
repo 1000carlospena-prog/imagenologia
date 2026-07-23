@@ -59,6 +59,11 @@
                             <option value="{{ e }}">
                         {% endfor %}
                     </datalist>
+                    <datalist id="municipio-sugerencias">
+                        {% for m in municipios %}
+                            <option value="{{ m }}">
+                        {% endfor %}
+                    </datalist>
                     <datalist id="municipio-temporal-sugerencias">
                         {% for m in municipios %}
                             <option value="{{ m }}">
