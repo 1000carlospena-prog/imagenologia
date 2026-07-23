@@ -27,7 +27,9 @@ urlpatterns = [
     path('equipos/<int:pk>/editar/', views.equipo_update, name='equipo_update'),
     path('equipos/<int:pk>/eliminar/', views.equipo_delete, name='equipo_delete'),
     path('equipos/duplicados/', views.equipo_duplicados, name='equipo_duplicados'),
-    path('periodo/eliminar/', views.periodo_delete, name='periodo_delete'),
+    path('periodos/', views.periodo_list, name='periodo_list'),
+    path('periodos/nuevo/', views.periodo_create, name='periodo_create'),
+    path('periodos/<int:pk>/eliminar/', views.periodo_delete, name='periodo_delete'),
     path('historial/', views.historial, name='historial'),
     path('historial/limpiar/', views.historial_clear, name='historial_clear'),
 ]

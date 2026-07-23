@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Periodo
 
 
 class AsignacionInline(admin.TabularInline):
@@ -51,6 +51,12 @@ class EquipoAdmin(admin.ModelAdmin):
     list_display = ['municipio', 'unidad_salud', 'denominacion', 'marca', 'modelo', 'estado']
     list_filter = ['municipio', 'tipo', 'estado']
     search_fields = ['municipio', 'unidad_salud', 'marca', 'modelo', 'numero_serie']
+
+
+@admin.register(Periodo)
+class PeriodoAdmin(admin.ModelAdmin):
+    list_display = ['fecha_inicio', 'fecha_fin', 'total_acciones', 'fecha_creacion']
+    list_filter = ['fecha_inicio', 'fecha_fin']
 
 
 @admin.register(PartePersona)

@@ -6,7 +6,7 @@ from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
 import calendar
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo
 from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
 
 
@@ -29,32 +29,14 @@ def _mes_actual_range():
     return inicio_mes, fin_mes
 
 
-def _periodos_anteriores():
-    from itertools import chain
-    rangos = set()
-    for p in ParteTrabajo.objects.values_list('fecha_inicio', 'fecha_fin').distinct():
-        rangos.add((p[0], p[1]))
-    for a in Asignacion.objects.values_list('fecha', flat=True).distinct():
-        inicio = date(a.year, a.month, 1)
-        ultimo = calendar.monthrange(a.year, a.month)[1]
-        fin = date(a.year, a.month, ultimo)
-        rangos.add((inicio, fin))
-    periodos = []
-    for inicio, fin in rangos:
-        total_acciones = (
-            Asignacion.objects.filter(fecha__gte=inicio, fecha__lte=fin)
-            .aggregate(t=Sum('acciones'))['t'] or 0
-        ) + (
-            ParteTrabajo.objects.filter(fecha_inicio__gte=inicio, fecha_fin__lte=fin)
-            .aggregate(t=Sum('total_acciones'))['t'] or 0
-        )
-        periodos.append({
-            'inicio': inicio,
-            'fin': fin,
-            'total_acciones': total_acciones,
-        })
-    periodos.sort(key=lambda x: x['fin'], reverse=True)
-    return periodos
+def _periodo_desde_id(request):
+    pk = request.GET.get('periodo') or request.POST.get('periodo')
+    if pk:
+        try:
+            return Periodo.objects.get(pk=pk)
+        except (Periodo.DoesNotExist, ValueError):
+            pass
+    return None
 
 
 def login_view(request):
@@ -124,14 +106,9 @@ def dashboard(request):
         return redirect('login')
     persona_id = request.session.get('persona_id')
 
-    fi = request.GET.get('fecha_inicio', '')
-    ff = request.GET.get('fecha_fin', '')
-    if fi and ff:
-        try:
-            inicio = datetime.strptime(fi, '%Y-%m-%d').date()
-            fin = datetime.strptime(ff, '%Y-%m-%d').date()
-        except (ValueError, TypeError):
-            inicio, fin = _mes_actual_range()
+    periodo = _periodo_desde_id(request)
+    if periodo:
+        inicio, fin = periodo.fecha_inicio, periodo.fecha_fin
     else:
         inicio, fin = _mes_actual_range()
 
@@ -174,13 +151,14 @@ def dashboard(request):
     total_acciones_global = sum(p.total_act for p in personas)
     total_horas_global = sum(p.total_horas for p in personas)
     total_he_global = sum(p.total_he for p in personas)
-    periodos = _periodos_anteriores()
+    periodos = Periodo.objects.all()
 
     context = {
         'personas': personas,
         'persona_actual': persona_actual,
         'inicio': inicio,
         'fin': fin,
+        'periodo_activo': periodo,
         'total_acciones_global': total_acciones_global,
         'total_horas_global': total_horas_global,
         'total_he_global': total_he_global,
@@ -653,42 +631,68 @@ def equipo_duplicados(request):
     })
 
 
-def periodo_delete(request):
+def periodo_list(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    fi = request.POST.get('fecha_inicio') or request.GET.get('fecha_inicio', '')
-    ff = request.POST.get('fecha_fin') or request.GET.get('fecha_fin', '')
-    if not fi or not ff:
-        messages.error(request, 'Debes especificar un periodo.')
-        return redirect('dashboard')
-    try:
-        inicio = datetime.strptime(fi, '%Y-%m-%d').date()
-        fin = datetime.strptime(ff, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        messages.error(request, 'Fechas inválidas.')
-        return redirect('dashboard')
+    periodos = Periodo.objects.all()
+    return render(request, 'inventario/periodo_list.html', {
+        'periodos': periodos,
+    })
+
+
+def periodo_create(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method == 'POST':
+        fi = request.POST.get('fecha_inicio', '')
+        ff = request.POST.get('fecha_fin', '')
+        if fi and ff:
+            try:
+                inicio = datetime.strptime(fi, '%Y-%m-%d').date()
+                fin = datetime.strptime(ff, '%Y-%m-%d').date()
+                if fin < inicio:
+                    messages.error(request, 'La fecha fin no puede ser anterior a la fecha inicio.')
+                    return render(request, 'inventario/periodo_form.html', {'inicio': fi, 'fin': ff})
+                Periodo.objects.create(fecha_inicio=inicio, fecha_fin=fin)
+                messages.success(request, f'Periodo {inicio:%d/%m/%Y} – {fin:%d/%m/%Y} creado.')
+                return redirect('dashboard')
+            except (ValueError, TypeError):
+                messages.error(request, 'Fechas inválidas.')
+        else:
+            messages.error(request, 'Ambas fechas son requeridas.')
+    return render(request, 'inventario/periodo_form.html')
+
+
+def periodo_delete(request, pk):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    periodo = get_object_or_404(Periodo, pk=pk)
 
     if request.method == 'POST':
-        partes = ParteTrabajo.objects.filter(fecha_inicio__gte=inicio, fecha_fin__lte=fin)
+        partes = ParteTrabajo.objects.filter(
+            fecha_inicio__gte=periodo.fecha_inicio, fecha_fin__lte=periodo.fecha_fin
+        )
         cant_partes = partes.count()
         partes.delete()
 
-        asignaciones = Asignacion.objects.filter(fecha__gte=inicio, fecha__lte=fin)
+        asignaciones = Asignacion.objects.filter(
+            fecha__gte=periodo.fecha_inicio, fecha__lte=periodo.fecha_fin
+        )
         cant_asig = asignaciones.count()
         asignaciones.delete()
 
         OrdenTrabajo.objects.filter(~Q(asignaciones__pk__isnull=False)).delete()
+        periodo.delete()
 
         messages.success(
             request,
-            f'Periodo {inicio:%d/%m/%Y} – {fin:%d/%m/%Y} eliminado: '
+            f'Periodo {periodo.fecha_inicio:%d/%m/%Y} – {periodo.fecha_fin:%d/%m/%Y} eliminado: '
             f'{cant_partes} parte(s) y {cant_asig} asignacion(es).'
         )
         return redirect('dashboard')
 
     return render(request, 'inventario/periodo_confirm_delete.html', {
-        'inicio': inicio,
-        'fin': fin,
+        'periodo': periodo,
     })
 
 

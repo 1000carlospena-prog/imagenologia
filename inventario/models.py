@@ -166,6 +166,30 @@ class PartePersona(models.Model):
         return f'{self.persona} - Parte {self.parte_id}'
 
 
+class Periodo(models.Model):
+    fecha_inicio = models.DateField('Fecha de inicio')
+    fecha_fin = models.DateField('Fecha de fin')
+    fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Periodo'
+        verbose_name_plural = 'Periodos'
+        ordering = ['-fecha_inicio']
+
+    def __str__(self):
+        return f'{self.fecha_inicio:%d/%m/%Y} – {self.fecha_fin:%d/%m/%Y}'
+
+    def total_acciones(self):
+        from django.db.models import Sum
+        total = Asignacion.objects.filter(
+            fecha__gte=self.fecha_inicio, fecha__lte=self.fecha_fin
+        ).aggregate(t=Sum('acciones'))['t'] or 0
+        total += ParteTrabajo.objects.filter(
+            fecha_inicio__gte=self.fecha_inicio, fecha_fin__lte=self.fecha_fin
+        ).aggregate(t=Sum('total_acciones'))['t'] or 0
+        return total
+
+
 class Auditoria(models.Model):
     ACCIONES = [
         ('editar', 'Editar'),

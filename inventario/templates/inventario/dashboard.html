@@ -16,35 +16,35 @@
     </div>
 </div>
 
-<form method="GET" class="row g-2 mb-3 align-items-end">
+<div class="row g-2 mb-3 align-items-end">
     <div class="col-auto">
-        <label class="form-label small mb-1">Fecha inicio</label>
-        <input type="date" name="fecha_inicio" class="form-control form-control-sm"
-               value="{{ inicio|date:'Y-m-d' }}" required>
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small mb-1">Periodo</label>
+                <select name="periodo" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Seleccionar --</option>
+                    {% for p in periodos %}
+                    <option value="{{ p.pk }}" {% if periodo_activo and p.pk == periodo_activo.pk %}selected{% endif %}>
+                        {{ p.fecha_inicio|date:'d/m/Y' }} – {{ p.fecha_fin|date:'d/m/Y' }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'periodo_create' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-plus-lg"></i> Crear periodo
+                </a>
+            </div>
+        </form>
     </div>
-    <div class="col-auto">
-        <label class="form-label small mb-1">Fecha fin</label>
-        <input type="date" name="fecha_fin" class="form-control form-control-sm"
-               value="{{ fin|date:'Y-m-d' }}" required>
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-search"></i> Consultar
-        </button>
-    </div>
-    <div class="col-auto">
-        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-calendar-month"></i> Este mes
+    <div class="col-auto ms-auto">
+        {% if periodo_activo %}
+        <a href="{% url 'periodo_delete' periodo_activo.pk %}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-trash"></i> Borrar este periodo
         </a>
+        {% endif %}
     </div>
-    <div class="col-auto">
-        <a href="{% url 'periodo_delete' %}?fecha_inicio={{ inicio|date:'Y-m-d' }}&fecha_fin={{ fin|date:'Y-m-d' }}"
-           class="btn btn-outline-danger btn-sm"
-           onclick="return confirm('¿Eliminar todo el periodo {{ inicio|date:'d/m/Y' }} – {{ fin|date:'d/m/Y' }}?')">
-            <i class="bi bi-trash"></i> Borrar periodo
-        </a>
-    </div>
-</form>
+</div>
 
 <div class="row g-3 mb-3">
     <div class="col-md-3">
@@ -81,80 +81,51 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-9">
-        <div class="card shadow-sm">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-primary">
-                            <tr>
-                                <th>Nombre</th>
-                                <th class="text-center">Acciones</th>
-                                <th class="text-center">Horas trabajadas</th>
-                                <th class="text-center">Horas extra</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in personas %}
-                            <tr class="{% if persona_actual and p.pk == persona_actual.pk %}table-active fw-bold{% endif %}">
-                                <td>
-                                    {% if persona_actual and p.pk == persona_actual.pk %}
-                                        <i class="bi bi-person-check-fill text-primary"></i>
-                                    {% else %}
-                                        <i class="bi bi-person text-muted"></i>
-                                    {% endif %}
-                                    {{ p.apellido }} {{ p.nombre }}
-                                </td>
-                                <td class="text-center fw-bold">{{ p.total_act }}</td>
-                                <td class="text-center">{{ p.total_horas|floatformat:1 }}</td>
-                                <td class="text-center">{{ p.total_he|floatformat:1 }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
-                                    <i class="bi bi-inbox fs-3 d-block"></i>
-                                    No hay personas registradas
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot class="table-light fw-bold">
-                            <tr>
-                                <td>TOTAL</td>
-                                <td class="text-center">{{ total_acciones_global }}</td>
-                                <td class="text-center">{{ total_horas_global|floatformat:1 }}</td>
-                                <td class="text-center">{{ total_he_global|floatformat:1 }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card shadow-sm">
-            <div class="card-header bg-light">
-                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Periodos anteriores</h6>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    {% for p in periodos %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                        <a href="?fecha_inicio={{ p.inicio|date:'Y-m-d' }}&fecha_fin={{ p.fin|date:'Y-m-d' }}"
-                           class="text-decoration-none small">
-                            {{ p.inicio|date:'d/m/Y' }} – {{ p.fin|date:'d/m/Y' }}
-                        </a>
-                        <span class="badge bg-secondary rounded-pill">{{ p.total_acciones }}</span>
-                    </li>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Nombre</th>
+                        <th class="text-center">Acciones</th>
+                        <th class="text-center">Horas trabajadas</th>
+                        <th class="text-center">Horas extra</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in personas %}
+                    <tr class="{% if persona_actual and p.pk == persona_actual.pk %}table-active fw-bold{% endif %}">
+                        <td>
+                            {% if persona_actual and p.pk == persona_actual.pk %}
+                                <i class="bi bi-person-check-fill text-primary"></i>
+                            {% else %}
+                                <i class="bi bi-person text-muted"></i>
+                            {% endif %}
+                            {{ p.apellido }} {{ p.nombre }}
+                        </td>
+                        <td class="text-center fw-bold">{{ p.total_act }}</td>
+                        <td class="text-center">{{ p.total_horas|floatformat:1 }}</td>
+                        <td class="text-center">{{ p.total_he|floatformat:1 }}</td>
+                    </tr>
                     {% empty %}
-                    <li class="list-group-item text-muted small text-center py-3">
-                        <i class="bi bi-inbox"></i> Sin periodos anteriores
-                    </li>
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3 d-block"></i>
+                            No hay personas registradas
+                        </td>
+                    </tr>
                     {% endfor %}
-                </ul>
-            </div>
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td>TOTAL</td>
+                        <td class="text-center">{{ total_acciones_global }}</td>
+                        <td class="text-center">{{ total_horas_global|floatformat:1 }}</td>
+                        <td class="text-center">{{ total_he_global|floatformat:1 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     </div>
 </div>

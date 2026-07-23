@@ -10,21 +10,19 @@
             </div>
             <div class="card-body text-center">
                 <i class="bi bi-calendar-x display-1 text-danger mb-3"></i>
-                <h5>¿Eliminar todo el periodo <strong>{{ inicio|date:'d/m/Y' }} – {{ fin|date:'d/m/Y' }}</strong>?</h5>
+                <h5>¿Eliminar el periodo <strong>{{ periodo.fecha_inicio|date:'d/m/Y' }} – {{ periodo.fecha_fin|date:'d/m/Y' }}</strong>?</h5>
                 <p class="text-muted">
                     Se eliminarán todas las <strong>órdenes de trabajo</strong>, <strong>asignaciones</strong>,
                     <strong>partes de trabajo</strong> y <strong>personas en partes</strong> dentro de este rango.
-                    Esta acción no se puede deshacer.
+                    El periodo también se eliminará. Esta acción no se puede deshacer.
                 </p>
                 <form method="POST">
                     {% csrf_token %}
-                    <input type="hidden" name="fecha_inicio" value="{{ inicio|date:'Y-m-d' }}">
-                    <input type="hidden" name="fecha_fin" value="{{ fin|date:'Y-m-d' }}">
                     <div class="d-flex justify-content-center gap-2">
                         <button type="submit" class="btn btn-danger">
                             <i class="bi bi-trash"></i> Sí, eliminar
                         </button>
-                        <a href="{% url 'dashboard' %}?fecha_inicio={{ inicio|date:'Y-m-d' }}&fecha_fin={{ fin|date:'Y-m-d' }}"
+                        <a href="{% url 'dashboard' %}?periodo={{ periodo.pk }}"
                            class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Cancelar
                         </a>
