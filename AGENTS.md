@@ -69,6 +69,8 @@ Equipo                                       (inventory)
 | `/ordenes/` | list (merged OrdenTrabajo + ParteTrabajo), create, detail, update, delete | `orden_*` |
 | `/partes/<pk>/eliminar/` | delete ParteTrabajo | `parte_delete` |
 | `/asignacion/<pk>/eliminar/` | delete | `asignacion_delete` |
+| `/historial/` | audit log (edits/deletes) | `historial` |
+| `/historial/limpiar/` | clear all (superuser only) | `historial_clear` |
 | `/equipos/` | list with filters | `equipo_list` |
 | `/equipos/nuevo/` | create | `equipo_create` |
 | `/equipos/<pk>/editar/` | update | `equipo_update` |
