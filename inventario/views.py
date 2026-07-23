@@ -200,7 +200,7 @@ def orden_list(request):
 
     from itertools import chain
 
-    ordenes_qs = OrdenTrabajo.objects.annotate(
+    ordenes_qs = OrdenTrabajo.objects.prefetch_related('asignaciones__persona').annotate(
         total_act=Sum('asignaciones__acciones'),
         total_pers=Count('asignaciones__persona', distinct=True),
     )
@@ -234,23 +234,26 @@ def orden_list(request):
             'total_pers': o.total_pers or 0,
             'total_act': o.total_act or 0,
             'personas_str': ', '.join(
-                str(a.persona) for a in o.asignaciones.select_related('persona').all()
+                str(a.persona) for a in o.asignaciones.all()
             ),
         }
 
     def parte_to_item(p):
+        personas_qs = p.personas.select_related('persona').all()
         personas_str = ', '.join(
             f'{pp.persona.apellido} {pp.persona.nombre}'
-            for pp in p.personas.select_related('persona').all()
+            for pp in personas_qs
         )
+        fi = p.fecha_inicio.strftime('%d/%m/%Y')
+        ff = p.fecha_fin.strftime('%d/%m/%Y')
         return {
             'tipo': 'parte',
             'pk': p.pk,
             'codigo': f'Parte #{p.pk}',
             'fecha': p.fecha_inicio,
-            'descripcion': f'{p.fecha_inicio|date:"d/m/Y"} – {p.fecha_fin|date:"d/m/Y"} ({p.acciones} acc × {p.cantidad_equipos} eq)',
+            'descripcion': f'{fi} – {ff} ({p.acciones} acc × {p.cantidad_equipos} eq)',
             'completada': True,
-            'total_pers': p.personas.count(),
+            'total_pers': len(personas_qs),
             'total_act': p.total_acciones,
             'personas_str': personas_str,
         }
