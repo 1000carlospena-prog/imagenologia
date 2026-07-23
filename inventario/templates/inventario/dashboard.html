@@ -33,9 +33,10 @@
                 <thead class="table-primary">
                     <tr>
                         <th>Nombre</th>
+                        <th class="text-center">Órdenes</th>
                         <th class="text-center">Acciones</th>
-                        <th class="text-center">Horas trabajadas</th>
-                        <th class="text-center">Horas extra</th>
+                        <th class="text-center">Horas</th>
+                        <th class="text-center">H. Extra</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -51,20 +52,20 @@
                                 {{ p.apellido }} {{ p.nombre }}
                             </a>
                         </td>
+                        <td data-label="Órdenes" class="text-center">{{ p.total_ordenes }}</td>
                         <td data-label="Acciones" class="text-center fw-bold">{{ p.total_act }}</td>
                         <td data-label="Horas" class="text-center">{{ p.total_horas|floatformat:1 }}</td>
                         <td data-label="H. Extra" class="text-center">{{ p.total_he|floatformat:1 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
+                        <td colspan="5" class="text-center text-muted py-4">
                             <i class="bi bi-inbox fs-3 d-block"></i>
                             No hay personas registradas
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
-
             </table>
         </div>
     </div>

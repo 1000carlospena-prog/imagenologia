@@ -131,6 +131,9 @@ def dashboard(request):
         total_he=Sum('asignaciones__horas_extras', filter=Q(
             asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
         )),
+        total_ordenes_legacy=Count('asignaciones__orden_trabajo', distinct=True, filter=Q(
+            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+        )),
         partes_act=Sum('partes__parte__total_acciones', filter=Q(
             partes__parte__fecha_inicio__gte=inicio,
             partes__parte__fecha_fin__lte=fin,
@@ -143,6 +146,10 @@ def dashboard(request):
             partes__parte__fecha_inicio__gte=inicio,
             partes__parte__fecha_fin__lte=fin,
         )),
+        total_ordenes_partes=Count('partes__parte', distinct=True, filter=Q(
+            partes__parte__fecha_inicio__gte=inicio,
+            partes__parte__fecha_fin__lte=fin,
+        )),
     ).order_by('apellido', 'nombre')
 
     for p in personas:
@@ -150,6 +157,7 @@ def dashboard(request):
         p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
         p.total_he = (p.total_he or 0) + (p.partes_he or 0)
         p.total_horas = p.total_hd + p.total_he
+        p.total_ordenes = (p.total_ordenes_legacy or 0) + (p.total_ordenes_partes or 0)
 
     try:
         persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None

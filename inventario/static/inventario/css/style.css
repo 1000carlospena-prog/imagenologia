@@ -171,10 +171,27 @@ td, th, .tabular-nums {
 .fb-icons {
     scrollbar-width: none;
     -ms-overflow-style: none;
+    gap: 0.25rem;
+}
+
+@media (min-width: 576px) {
+    .fb-icons {
+        gap: 0.5rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .fb-icons {
+        gap: 0.75rem;
+    }
 }
 
 .fb-icons::-webkit-scrollbar {
     display: none;
+}
+
+.fb-extra {
+    gap: 0.25rem;
 }
 
 .text-light-50 {
