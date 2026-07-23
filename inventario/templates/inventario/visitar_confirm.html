@@ -77,7 +77,7 @@
         <div class="icon"><i class="bi bi-eye"></i></div>
         <h1>Enlace de visita</h1>
         <p>Se te ha compartido un enlace para ver el sistema de inventario de Imagenología en modo solo lectura.</p>
-        <form method="POST">
+        <form method="POST" action="{{ action }}">
             {% csrf_token %}
             <button type="submit" class="btn">
                 <i class="bi bi-box-arrow-in-right"></i> Entrar como visitante
