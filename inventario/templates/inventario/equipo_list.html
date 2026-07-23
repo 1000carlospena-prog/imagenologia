@@ -34,18 +34,19 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">Unidad de salud <span class="text-info">(Ctrl+clic para varias)</span></label>
-        <select name="unidad" class="form-select" multiple size="6">
+        <label class="form-label small text-muted mb-1">Unidad de salud <span class="text-info">(clic para seleccionar)</span></label>
+        <select name="unidad" class="form-select click-select" multiple size="6">
             {% for u in unidades %}
                 <option value="{{ u }}" {% if u in f_unidad %}selected{% endif %}>{{ u }}</option>
             {% endfor %}
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">Municipio <span class="text-info">(Ctrl+clic)</span></label>
-        <select name="municipio" class="form-select" multiple size="6">
+        <label class="form-label small text-muted mb-1">Municipio</label>
+        <select name="municipio" class="form-select">
+            <option value="">Todos</option>
             {% for m in municipios_list %}
-                <option value="{{ m }}" {% if m in f_municipio %}selected{% endif %}>{{ m }}</option>
+                <option value="{{ m }}" {% if f_municipio and m == f_municipio.0 %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
         </select>
     </div>
@@ -60,7 +61,7 @@
     </div>
     <div class="col-md-3 d-flex gap-2">
         <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
-        {% if q or f_marca or f_modelo or f_unidad_str or f_municipio_str or f_estado %}
+        {% if q or f_marca or f_modelo or f_unidad_str or f_municipio or f_estado %}
         <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary flex-fill">Limpiar</a>
         {% endif %}
     </div>
@@ -248,4 +249,20 @@
     {% if q %}No se encontraron equipos con "{{ q }}"{% else %}No hay equipos registrados{% endif %}
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('.click-select').forEach(function(select) {
+    select.addEventListener('mousedown', function(e) {
+        if (e.target.tagName === 'OPTION') {
+            e.preventDefault();
+            var opt = e.target;
+            opt.selected = !opt.selected;
+            var event = new Event('change', { bubbles: true });
+            select.dispatchEvent(event);
+        }
+    });
+});
+</script>
 {% endblock %}

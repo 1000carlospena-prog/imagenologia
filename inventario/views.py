@@ -407,7 +407,7 @@ def equipo_list(request):
     f_marca = request.GET.get('marca', '')
     f_modelo = request.GET.get('modelo', '')
     f_unidad = request.GET.getlist('unidad')
-    f_municipio = request.GET.getlist('municipio')
+    f_municipio = request.GET.get('municipio', '')
     f_estado = request.GET.get('estado', '')
 
     equipos = Equipo.objects.all()
@@ -424,7 +424,7 @@ def equipo_list(request):
     if f_unidad:
         equipos = equipos.filter(unidad_salud__in=f_unidad)
     if f_municipio:
-        equipos = equipos.filter(municipio__in=f_municipio)
+        equipos = equipos.filter(municipio=f_municipio)
     if f_estado:
         equipos = equipos.filter(estado=f_estado)
 
@@ -467,7 +467,6 @@ def equipo_list(request):
         'f_unidad': f_unidad,
         'f_municipio': f_municipio,
         'f_unidad_str': ','.join(f_unidad),
-        'f_municipio_str': ','.join(f_municipio),
         'f_estado': f_estado,
         'total': equipos.count(),
     }
