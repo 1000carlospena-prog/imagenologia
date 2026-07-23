@@ -80,7 +80,7 @@
                     <td class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
                     <td class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
                     <td class="text-center">
-                        <a href="{% url 'orden_detail' a.orden_trabajo.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar OT-{{ a.orden_trabajo.numero_orden }}">
+                        <a href="{% url 'orden_update' a.orden_trabajo.pk %}" class="btn btn-sm btn-outline-primary" title="Editar orden" aria-label="Editar OT-{{ a.orden_trabajo.numero_orden }}">
                             <i class="bi bi-pencil"></i>
                         </a>
                     </td>
@@ -95,8 +95,8 @@
                     <td class="text-center">{{ pp.horas_trabajadas|floatformat:1 }}</td>
                     <td class="text-center">{{ pp.horas_extras|floatformat:1 }}</td>
                     <td class="text-center">
-                        <a href="{% url 'orden_list' %}?persona={{ persona.pk }}" class="btn btn-sm btn-outline-success" title="Ver en órdenes" aria-label="Ver parte #{{ pp.parte.pk }}">
-                            <i class="bi bi-eye"></i>
+                        <a href="{% url 'parte_update' pp.parte.pk %}" class="btn btn-sm btn-outline-success" title="Editar parte" aria-label="Editar parte #{{ pp.parte.pk }}">
+                            <i class="bi bi-pencil"></i>
                         </a>
                     </td>
                 </tr>
