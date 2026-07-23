@@ -89,3 +89,35 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+<script>
+var munUnidad = {{ mun_unidad_json|safe }};
+
+function filterUnidad(municipioInput, datalistId) {
+    var mun = municipioInput.value.trim();
+    var datalist = document.getElementById(datalistId);
+    var unidades = munUnidad[mun] || [];
+    datalist.innerHTML = '';
+    unidades.forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u;
+        datalist.appendChild(opt);
+    });
+}
+
+var municipioInput = document.getElementById('id_municipio');
+if (municipioInput) {
+    municipioInput.addEventListener('input', function() {
+        filterUnidad(municipioInput, 'unidad-sugerencias');
+    });
+}
+
+var tempMunInput = document.getElementById('id_ubicacion_temporal_municipio');
+if (tempMunInput) {
+    tempMunInput.addEventListener('input', function() {
+        filterUnidad(tempMunInput, 'unidad-temporal-sugerencias');
+    });
+}
+</script>
+{% endblock %}
