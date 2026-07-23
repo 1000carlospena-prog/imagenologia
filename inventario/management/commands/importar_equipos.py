@@ -26,10 +26,22 @@ class Command(BaseCommand):
 
         Equipo.objects.all().delete()
 
-        self._importar_rx(str(data_dir / 'Estado de los RX Provincia x marca .xlsx'))
-        self._importar_usd_marcas(str(data_dir / 'Estado de los USD x Marcas.xlsx'))
-        self._importar_usd_municipios(str(data_dir / 'Estado de los USD x Municipios.xlsx'))
-        self._importar_plan_mtto(str(data_dir / 'Plan de Mtto.xlsx'))
+        errores = []
+        def _seguro(nombre, fn):
+            try:
+                fn()
+            except Exception as e:
+                errores.append(f'{nombre}: {e}')
+                self.stdout.write(self.style.ERROR(f'  Error en {nombre}: {e}'))
+
+        _seguro('RX', lambda: self._importar_rx(str(data_dir / 'Estado de los RX Provincia x marca .xlsx')))
+        _seguro('USD Marcas', lambda: self._importar_usd_marcas(str(data_dir / 'Estado de los USD x Marcas.xlsx')))
+        _seguro('USD Municipios', lambda: self._importar_usd_municipios(str(data_dir / 'Estado de los USD x Municipios.xlsx')))
+        _seguro('Plan Mtto', lambda: self._importar_plan_mtto(str(data_dir / 'Plan de Mtto.xlsx')))
+        _seguro('Conteo', lambda: self.stdout.write(f'  Parcial: {Equipo.objects.count()} equipos hasta ahora'))
+
+        if errores:
+            self.stdout.write(self.style.ERROR(f'{len(errores)} archivo(s) con errores: {"; ".join(errores)}'))
 
         total = Equipo.objects.count()
         self.stdout.write(self.style.SUCCESS(f'{total} equipos importados.'))
