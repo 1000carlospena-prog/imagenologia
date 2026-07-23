@@ -165,7 +165,7 @@ class EquipoForm(forms.ModelForm):
             'marca': forms.TextInput(attrs={'class': 'form-control'}),
             'modelo': forms.TextInput(attrs={'class': 'form-control'}),
             'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
-            'estado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Funcionando, Afectado, Roto...'}),
+            'estado': forms.Select(attrs={'class': 'form-select'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'frecuencia': forms.TextInput(attrs={'class': 'form-control'}),
         }
