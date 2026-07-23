@@ -1,0 +1,173 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Generar orden - Imagenología{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-file-earmark-plus"></i> Generar parte de trabajo
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="ordenForm">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 small">
+                            {% for error in form.non_field_errors %}
+                                <i class="bi bi-exclamation-triangle"></i> {{ error }}<br>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-check2-square"></i> Acciones por equipo
+                            </label>
+                            {{ form.acciones }}
+                            <div class="form-text">Selecciona entre 1 y 10</div>
+                            {% if form.acciones.errors %}
+                                <div class="text-danger small">{{ form.acciones.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-tools"></i> Cantidad de equipos
+                            </label>
+                            {{ form.cantidad_equipos }}
+                            {% if form.cantidad_equipos.errors %}
+                                <div class="text-danger small">{{ form.cantidad_equipos.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold text-success">
+                                <i class="bi bi-calculator"></i> Total acciones
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light fw-bold" id="totalAccionesDisplay">0</span>
+                            </div>
+                            <div class="form-text">Acciones × Equipos</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-calendar-start"></i> Desde
+                            </label>
+                            {{ form.fecha_inicio }}
+                            {% if form.fecha_inicio.errors %}
+                                <div class="text-danger small">{{ form.fecha_inicio.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.fecha_fin.id_for_label }}" class="form-label fw-semibold">
+                                <i class="bi bi-calendar-end"></i> Hasta
+                            </label>
+                            {{ form.fecha_fin }}
+                            {% if form.fecha_fin.errors %}
+                                <div class="text-danger small">{{ form.fecha_fin.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-people"></i> Personas que trabajaron
+                        </label>
+                        <div class="card bg-light border-0">
+                            <div class="card-body py-2 px-3">
+                                <div class="row g-2" id="personasContainer">
+                                    {% for persona in form.personas.field.queryset %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input type="checkbox" name="personas" value="{{ persona.pk }}"
+                                                       id="id_personas_{{ persona.pk }}"
+                                                       class="form-check-input persona-checkbox"
+                                                       {% if persona.pk in personas_iniciales %}checked{% endif %}>
+                                                <label class="form-check-label" for="id_personas_{{ persona.pk }}">
+                                                    {{ persona.apellido }} {{ persona.nombre }}
+                                                </label>
+                                            </div>
+                                            <div class="persona-hours ms-4 mt-1" id="hours_{{ persona.pk }}" style="display:none;">
+                                                <div class="row g-1">
+                                                    <div class="col-6">
+                                                        <input type="number" name="horas_trabajadas_{{ persona.pk }}"
+                                                               class="form-control form-control-sm"
+                                                               placeholder="H. trabajadas" min="0" step="0.5">
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <input type="number" name="horas_extras_{{ persona.pk }}"
+                                                               class="form-control form-control-sm"
+                                                               placeholder="H. extra" min="0" step="0.5">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% if form.personas.errors %}
+                            <div class="text-danger small mt-1">{{ form.personas.errors|striptags }}</div>
+                        {% endif %}
+                        <div class="form-text">Selecciona las personas y asigna sus horas trabajadas y extras.</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> Generar parte
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var accionesInput = document.getElementById('id_acciones');
+    var equiposInput = document.getElementById('id_cantidad_equipos');
+    var totalDisplay = document.getElementById('totalAccionesDisplay');
+
+    function calcTotal() {
+        var a = parseInt(accionesInput.value) || 0;
+        var e = parseInt(equiposInput.value) || 0;
+        totalDisplay.textContent = a * e;
+    }
+
+    accionesInput.addEventListener('input', calcTotal);
+    equiposInput.addEventListener('input', calcTotal);
+
+    var checkboxes = document.querySelectorAll('.persona-checkbox');
+    checkboxes.forEach(function(cb) {
+        function toggleHours() {
+            var hoursDiv = document.getElementById('hours_' + cb.value);
+            if (hoursDiv) {
+                hoursDiv.style.display = cb.checked ? 'block' : 'none';
+            }
+        }
+        cb.addEventListener('change', toggleHours);
+        toggleHours();
+    });
+
+    var fechaInicio = document.getElementById('id_fecha_inicio');
+    var fechaFin = document.getElementById('id_fecha_fin');
+    fechaInicio.addEventListener('change', function() {
+        if (!fechaFin.value || fechaFin.value < this.value) {
+            fechaFin.value = this.value;
+        }
+        fechaFin.min = this.value;
+    });
+});
+</script>
+{% endblock %}

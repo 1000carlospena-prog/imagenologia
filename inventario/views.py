@@ -1,27 +1,146 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
-from datetime import timedelta
-from .models import Persona, OrdenTrabajo, Asignacion
-from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm
+from datetime import timedelta, datetime, date
+import calendar
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona
+from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, PartePersonaForm
+
+
+def _mes_actual_range():
+    hoy = timezone.now().date()
+    inicio_mes = date(hoy.year, hoy.month, 1)
+    ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+    fin_mes = date(hoy.year, hoy.month, ultimo_dia)
+    return inicio_mes, fin_mes
+
+
+def _mes_pasado_a_mes_actual_range():
+    hoy = timezone.now().date()
+    if hoy.month == 1:
+        mes_pasado_inicio = date(hoy.year - 1, 12, 1)
+    else:
+        mes_pasado_inicio = date(hoy.year, hoy.month - 1, 1)
+    ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+    fin_mes_actual = date(hoy.year, hoy.month, ultimo_dia)
+    return mes_pasado_inicio, fin_mes_actual
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('select_persona')
+    if request.method == 'POST':
+        form = LoginForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            auth_login(request, user)
+            messages.success(request, f'Bienvenido, {user.username}.')
+            return redirect('select_persona')
+    else:
+        form = LoginForm()
+    return render(request, 'inventario/login.html', {'form': form})
+
+
+def logout_view(request):
+    auth_logout(request)
+    if 'persona_id' in request.session:
+        del request.session['persona_id']
+    messages.info(request, 'Sesión cerrada correctamente.')
+    return redirect('login')
+
+
+def select_persona(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method == 'POST':
+        if 'persona_id' in request.POST:
+            persona_id = request.POST.get('persona_id')
+            try:
+                persona = Persona.objects.get(pk=persona_id, activo=True)
+                request.session['persona_id'] = persona.pk
+                request.session['persona_nombre'] = str(persona)
+                messages.success(request, f'Has iniciado sesión como {persona}.')
+                return redirect('dashboard')
+            except Persona.DoesNotExist:
+                messages.error(request, 'Persona no encontrada.')
+                return redirect('select_persona')
+        elif 'nombre' in request.POST:
+            form = QuickPersonaForm(request.POST)
+            if form.is_valid():
+                persona = form.save(commit=False)
+                persona.apellido = persona.nombre 
+                persona.activo = True
+                persona.save()
+                messages.success(request, f'Persona "{persona.nombre}" creada. Selecciónala para iniciar.')
+                return redirect('select_persona')
+            else:
+                personas = Persona.objects.filter(activo=True).order_by('apellido', 'nombre')
+                return render(request, 'inventario/select_persona.html', {
+                    'personas': personas,
+                    'form': form,
+                })
+        return redirect('select_persona')
+    personas = Persona.objects.filter(activo=True).order_by('apellido', 'nombre')
+    form = QuickPersonaForm()
+    return render(request, 'inventario/select_persona.html', {
+        'personas': personas,
+        'form': form,
+    })
 
 
 def dashboard(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    persona_id = request.session.get('persona_id')
+    inicio_mes, fin_mes = _mes_actual_range()
+
     personas = Persona.objects.filter(activo=True).annotate(
         total_act=Sum('asignaciones__acciones'),
         total_hd=Sum('asignaciones__horas_diurnas'),
         total_he=Sum('asignaciones__horas_extras'),
+        partes_act=Sum('partes__parte__total_acciones', filter=Q(
+            partes__parte__fecha_inicio__gte=inicio_mes,
+            partes__parte__fecha_fin__lte=fin_mes,
+        )),
+        partes_hd=Sum('partes__horas_trabajadas', filter=Q(
+            partes__parte__fecha_inicio__gte=inicio_mes,
+            partes__parte__fecha_fin__lte=fin_mes,
+        )),
+        partes_he=Sum('partes__horas_extras', filter=Q(
+            partes__parte__fecha_inicio__gte=inicio_mes,
+            partes__parte__fecha_fin__lte=fin_mes,
+        )),
     ).order_by('apellido', 'nombre')
 
     for p in personas:
-        p.total_act = p.total_act or 0
-        p.total_hd = p.total_hd or 0
-        p.total_he = p.total_he or 0
+        p.total_act = (p.total_act or 0) + (p.partes_act or 0)
+        p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
+        p.total_he = (p.total_he or 0) + (p.partes_he or 0)
         p.total_horas = p.total_hd + p.total_he
+        p.filtro_mes = f'{inicio_mes:%d/%m/%Y} - {fin_mes:%d/%m/%Y}'
 
-    context = {'personas': personas}
+    try:
+        persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
+    except Persona.DoesNotExist:
+        persona_actual = None
+
+    total_acciones_global = sum(p.total_act for p in personas)
+    total_horas_global = sum(p.total_horas for p in personas)
+    total_he_global = sum(p.total_he for p in personas)
+
+    context = {
+        'personas': personas,
+        'persona_actual': persona_actual,
+        'inicio_mes': inicio_mes,
+        'fin_mes': fin_mes,
+        'total_acciones_global': total_acciones_global,
+        'total_horas_global': total_horas_global,
+        'total_he_global': total_he_global,
+    }
     return render(request, 'inventario/dashboard.html', context)
 
 
@@ -197,3 +316,94 @@ def asignacion_delete(request, pk):
         messages.success(request, 'Asignación eliminada correctamente.')
         return redirect('orden_detail', pk=orden_pk)
     return render(request, 'inventario/asignacion_confirm_delete.html', {'asignacion': asignacion})
+
+
+def generar_orden(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    persona_id = request.session.get('persona_id')
+    try:
+        persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
+    except Persona.DoesNotExist:
+        persona_actual = None
+
+    hoy = timezone.now().date()
+    fecha_max = date(hoy.year, hoy.month, calendar.monthrange(hoy.year, hoy.month)[1])
+    if hoy.month == 1:
+        fecha_min = date(hoy.year - 1, 12, 1)
+    else:
+        fecha_min = date(hoy.year, hoy.month - 1, 1)
+
+    personas_iniciales = [persona_actual.pk] if persona_actual else []
+
+    if request.method == 'POST':
+        posted_pks = [int(pk) for pk in request.POST.getlist('personas')]
+        if posted_pks:
+            personas_iniciales = posted_pks
+        form = ParteTrabajoForm(request.POST, persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
+        if form.is_valid():
+            parte = form.save(commit=False)
+            parte.creado_por = persona_actual
+            parte.save()
+
+            personas_seleccionadas = form.cleaned_data['personas']
+            errores = []
+            for p in personas_seleccionadas:
+                conflictos = PartePersona.objects.filter(
+                    persona=p,
+                ).exclude(
+                    parte=parte
+                ).filter(
+                    Q(parte__fecha_inicio__lte=parte.fecha_fin) &
+                    Q(parte__fecha_fin__gte=parte.fecha_inicio)
+                )
+                if conflictos.exists():
+                    errores.append(
+                        f'{p} ya está asignado a otro parte de trabajo en el periodo '
+                        f'{parte.fecha_inicio} - {parte.fecha_fin}'
+                    )
+
+            if errores:
+                parte.delete()
+                for error in errores:
+                    messages.error(request, error)
+                personas_qs = Persona.objects.filter(activo=True)
+                form.fields['personas'].queryset = personas_qs
+                return render(request, 'inventario/generar_orden.html', {
+                    'form': form,
+                    'persona_actual': persona_actual,
+                    'personas_iniciales': personas_iniciales,
+                    'fecha_min': fecha_min,
+                    'fecha_max': fecha_max,
+                })
+
+            horas_data = {}
+            for key, value in request.POST.items():
+                if key.startswith('horas_trabajadas_'):
+                    pid = key.replace('horas_trabajadas_', '')
+                    horas_data[pid] = {
+                        'horas_trabajadas': value,
+                        'horas_extras': request.POST.get(f'horas_extras_{pid}', 0),
+                    }
+
+            for p in personas_seleccionadas:
+                data = horas_data.get(str(p.pk), {'horas_trabajadas': 0, 'horas_extras': 0})
+                PartePersona.objects.create(
+                    parte=parte,
+                    persona=p,
+                    horas_trabajadas=data['horas_trabajadas'],
+                    horas_extras=data['horas_extras'],
+                )
+
+            messages.success(request, 'Parte de trabajo creado correctamente.')
+            return redirect('dashboard')
+    else:
+        form = ParteTrabajoForm(persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
+
+    return render(request, 'inventario/generar_orden.html', {
+        'form': form,
+        'persona_actual': persona_actual,
+        'personas_iniciales': personas_iniciales,
+        'fecha_min': fecha_min,
+        'fecha_max': fecha_max,
+    })

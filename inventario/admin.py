@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Persona, OrdenTrabajo, Asignacion
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona
 
 
 class AsignacionInline(admin.TabularInline):
@@ -30,3 +30,26 @@ class AsignacionAdmin(admin.ModelAdmin):
     list_filter = ['fecha']
     search_fields = ['orden_trabajo__numero_orden', 'persona__nombre', 'persona__apellido']
     autocomplete_fields = ['orden_trabajo', 'persona']
+
+
+class PartePersonaInline(admin.TabularInline):
+    model = PartePersona
+    extra = 1
+    autocomplete_fields = ['persona']
+
+
+@admin.register(ParteTrabajo)
+class ParteTrabajoAdmin(admin.ModelAdmin):
+    list_display = ['pk', 'fecha_inicio', 'fecha_fin', 'acciones', 'cantidad_equipos', 'total_acciones', 'creado_por']
+    list_filter = ['fecha_inicio', 'fecha_fin']
+    search_fields = ['pk']
+    inlines = [PartePersonaInline]
+
+
+@admin.register(PartePersona)
+class PartePersonaAdmin(admin.ModelAdmin):
+    list_display = ['parte', 'persona', 'horas_trabajadas', 'horas_extras']
+    list_filter = ['parte__fecha_inicio']
+    search_fields = ['persona__nombre', 'persona__apellido']
+    autocomplete_fields = ['persona']
+    raw_id_fields = ['parte']

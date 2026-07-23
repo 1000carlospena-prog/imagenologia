@@ -16,4 +16,9 @@ urlpatterns = [
     path('ordenes/<int:pk>/eliminar/', views.orden_delete, name='orden_delete'),
 
     path('asignacion/<int:pk>/eliminar/', views.asignacion_delete, name='asignacion_delete'),
+
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('select-persona/', views.select_persona, name='select_persona'),
+    path('generar-orden/', views.generar_orden, name='generar_orden'),
 ]

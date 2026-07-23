@@ -1,5 +1,6 @@
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 
 class Persona(models.Model):
@@ -94,3 +95,61 @@ class Asignacion(models.Model):
 
     def total_horas(self):
         return self.horas_diurnas + self.horas_extras
+
+
+class ParteTrabajo(models.Model):
+    fecha_inicio = models.DateField('Fecha de inicio')
+    fecha_fin = models.DateField('Fecha de fin')
+    acciones = models.PositiveIntegerField(
+        'Acciones por equipo', default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
+    cantidad_equipos = models.PositiveIntegerField(
+        'Cantidad de equipos', default=0,
+        validators=[MinValueValidator(0)]
+    )
+    total_acciones = models.PositiveIntegerField('Total de acciones', default=0)
+    creado_por = models.ForeignKey(
+        Persona, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='partes_creados', verbose_name='Creado por'
+    )
+    fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Parte de trabajo'
+        verbose_name_plural = 'Partes de trabajo'
+        ordering = ['-fecha_inicio', '-fecha_creacion']
+
+    def __str__(self):
+        return f'Parte {self.pk} ({self.fecha_inicio} - {self.fecha_fin}, {self.total_acciones} acc.)'
+
+    def save(self, *args, **kwargs):
+        self.total_acciones = self.acciones * self.cantidad_equipos
+        super().save(*args, **kwargs)
+
+
+class PartePersona(models.Model):
+    parte = models.ForeignKey(
+        ParteTrabajo, on_delete=models.CASCADE,
+        related_name='personas', verbose_name='Parte de trabajo'
+    )
+    persona = models.ForeignKey(
+        Persona, on_delete=models.CASCADE,
+        related_name='partes', verbose_name='Persona'
+    )
+    horas_trabajadas = models.DecimalField(
+        'Horas trabajadas', max_digits=6, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)]
+    )
+    horas_extras = models.DecimalField(
+        'Horas extra', max_digits=6, decimal_places=2, default=0,
+        validators=[MinValueValidator(0)]
+    )
+
+    class Meta:
+        verbose_name = 'Persona en parte'
+        verbose_name_plural = 'Personas en partes'
+        unique_together = ['parte', 'persona']
+
+    def __str__(self):
+        return f'{self.persona} - Parte {self.parte_id}'

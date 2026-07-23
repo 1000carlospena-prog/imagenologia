@@ -61,12 +61,35 @@ body {
     border: none;
 }
 
+.list-group-item {
+    border-radius: 8px !important;
+    margin-bottom: 2px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.list-group-item:hover {
+    background-color: rgba(13, 110, 253, 0.05) !important;
+}
+
+.persona-hours input {
+    font-size: 0.85rem;
+}
+
+.min-vh-100 {
+    min-height: 100vh;
+}
+
+.table-active {
+    background-color: rgba(13, 110, 253, 0.08) !important;
+}
+
 @media (max-width: 768px) {
     .container-fluid {
         padding-left: 10px;
         padding-right: 10px;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
