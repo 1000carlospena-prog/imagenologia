@@ -19,9 +19,6 @@
     <a href="#main-content" class="visually-hidden-focusable d-inline-flex align-items-center p-2 text-decoration-none" style="position:absolute;z-index:9999">Saltar al contenido</a>
     <nav class="navbar navbar-dark bg-primary shadow-sm sticky-top py-1 fb-nav">
         <div class="container-fluid d-flex flex-nowrap gap-1 gap-sm-2">
-            <a class="navbar-brand fw-bold py-0 flex-shrink-0" href="{% url 'dashboard' %}">
-                <i class="bi bi-clipboard-data fs-5"></i>
-            </a>
             <ul class="nav nav-pills mx-auto fb-icons flex-nowrap overflow-auto">
                 <li class="nav-item">
                     <a class="nav-link text-center py-1 px-2 px-sm-3 {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}" title="Dashboard">

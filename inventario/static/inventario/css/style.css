@@ -145,10 +145,6 @@ td, th, .tabular-nums {
     min-height: 52px;
 }
 
-.fb-nav .navbar-brand {
-    font-size: 1.2rem;
-}
-
 .fb-nav .nav-link {
     color: rgba(255,255,255,0.8);
     border-radius: 8px;
