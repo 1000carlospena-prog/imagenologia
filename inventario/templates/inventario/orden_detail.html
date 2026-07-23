@@ -96,7 +96,7 @@
                                 <td class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
                                 <td class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
                                 <td class="text-center">
-                                    <a href="{% url 'asignacion_delete' a.pk %}" class="btn btn-sm btn-outline-danger" title="Quitar">
+                                    <a href="{% url 'asignacion_delete' a.pk %}" class="btn btn-sm btn-outline-danger" title="Quitar" aria-label="Quitar {{ a.persona.nombre }} {{ a.persona.apellido }}">
                                         <i class="bi bi-person-x"></i>
                                     </a>
                                 </td>

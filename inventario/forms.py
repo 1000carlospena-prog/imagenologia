@@ -8,10 +8,10 @@ class PersonaForm(forms.ModelForm):
         model = Persona
         fields = ['nombre', 'apellido', 'email', 'telefono', 'activo']
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre'}),
-            'apellido': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}),
-            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+52 555 555 5555'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre', 'autocomplete': 'given-name'}),
+            'apellido': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido', 'autocomplete': 'family-name'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com', 'autocomplete': 'email'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+52 555 555 5555', 'autocomplete': 'tel'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
@@ -22,13 +22,13 @@ class OrdenTrabajoForm(forms.ModelForm):
         fields = ['numero_orden', 'descripcion', 'fecha', 'completada']
         widgets = {
             'numero_orden': forms.TextInput(attrs={
-                'class': 'form-control', 'placeholder': 'Ej: 2024-001'
+                'class': 'form-control', 'placeholder': 'Ej: 2024-001', 'autocomplete': 'off'
             }),
             'descripcion': forms.Textarea(attrs={
-                'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción de la orden...'
+                'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción de la orden...', 'autocomplete': 'off'
             }),
             'fecha': forms.DateInput(attrs={
-                'class': 'form-control', 'type': 'date'
+                'class': 'form-control', 'type': 'date', 'autocomplete': 'off'
             }),
             'completada': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -39,11 +39,11 @@ class AsignacionForm(forms.ModelForm):
         model = Asignacion
         fields = ['persona', 'fecha', 'acciones', 'horas_diurnas', 'horas_extras']
         widgets = {
-            'persona': forms.Select(attrs={'class': 'form-select'}),
-            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'acciones': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'horas_diurnas': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5}),
-            'horas_extras': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5}),
+            'persona': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}),
+            'acciones': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'autocomplete': 'off'}),
+            'horas_diurnas': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5, 'autocomplete': 'off'}),
+            'horas_extras': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5, 'autocomplete': 'off'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -55,11 +55,11 @@ class AsignacionForm(forms.ModelForm):
 class LoginForm(AuthenticationForm):
     username = forms.CharField(
         label='Usuario',
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Usuario', 'autofocus': True})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Usuario', 'autofocus': True, 'autocomplete': 'username'})
     )
     password = forms.CharField(
         label='Contraseña',
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Contraseña'})
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Contraseña', 'autocomplete': 'current-password'})
     )
 
 
@@ -69,7 +69,7 @@ class QuickPersonaForm(forms.ModelForm):
         fields = ['nombre']
         widgets = {
             'nombre': forms.TextInput(attrs={
-                'class': 'form-control', 'placeholder': 'Nombre del usuario'
+                'class': 'form-control', 'placeholder': 'Nombre del usuario', 'autocomplete': 'off'
             }),
         }
         labels = {'nombre': 'Nombre'}
@@ -156,18 +156,18 @@ class EquipoForm(forms.ModelForm):
         fields = ['municipio', 'unidad_salud', 'tipo', 'denominacion', 'servicio',
                   'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones', 'frecuencia']
         widgets = {
-            'municipio': forms.TextInput(attrs={'class': 'form-control'}),
-            'unidad_salud': forms.TextInput(attrs={'class': 'form-control'}),
-            'tipo': forms.Select(attrs={'class': 'form-select'}),
-            'denominacion': forms.TextInput(attrs={'class': 'form-control'}),
-            'servicio': forms.TextInput(attrs={'class': 'form-control'}),
-            'local': forms.TextInput(attrs={'class': 'form-control'}),
-            'marca': forms.TextInput(attrs={'class': 'form-control'}),
-            'modelo': forms.TextInput(attrs={'class': 'form-control'}),
-            'numero_serie': forms.TextInput(attrs={'class': 'form-control'}),
-            'estado': forms.TextInput(attrs={'class': 'form-control', 'list': 'estado-sugerencias'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'frecuencia': forms.TextInput(attrs={'class': 'form-control'}),
+            'municipio': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'tipo': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+            'denominacion': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'servicio': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'local': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'marca': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'numero_serie': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'estado': forms.TextInput(attrs={'class': 'form-control', 'list': 'estado-sugerencias', 'autocomplete': 'off'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
+            'frecuencia': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
         }
 
 

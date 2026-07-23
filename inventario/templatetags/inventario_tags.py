@@ -18,13 +18,4 @@ def get_item(dictionary, key):
     return dictionary.get(key)
 
 
-@register.simple_tag
-def active_page(request, view_name):
-    from django.urls import resolve, Resolver404
-    try:
-        match = resolve(request.path_info)
-        if match.view_name.startswith(view_name):
-            return 'active'
-    except Resolver404:
-        pass
-    return ''
+

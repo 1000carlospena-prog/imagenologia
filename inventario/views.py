@@ -1,11 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
-from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
-from datetime import timedelta, datetime, date
+from datetime import date
 import calendar
 from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo
 from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
@@ -17,17 +16,6 @@ def _mes_actual_range():
     ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
     fin_mes = date(hoy.year, hoy.month, ultimo_dia)
     return inicio_mes, fin_mes
-
-
-def _mes_pasado_a_mes_actual_range():
-    hoy = timezone.now().date()
-    if hoy.month == 1:
-        mes_pasado_inicio = date(hoy.year - 1, 12, 1)
-    else:
-        mes_pasado_inicio = date(hoy.year, hoy.month - 1, 1)
-    ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
-    fin_mes_actual = date(hoy.year, hoy.month, ultimo_dia)
-    return mes_pasado_inicio, fin_mes_actual
 
 
 def login_view(request):

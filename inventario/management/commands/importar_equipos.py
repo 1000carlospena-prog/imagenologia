@@ -14,8 +14,15 @@ def limpiar(v):
 class Command(BaseCommand):
     help = 'Importa equipos desde los archivos Excel'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true', help='Re-importar incluso si ya hay datos')
+
     def handle(self, *args, **options):
         data_dir = Path(__file__).resolve().parent.parent.parent.parent / 'data'
+
+        if Equipo.objects.exists() and not options['force']:
+            self.stdout.write(f'Ya hay {Equipo.objects.count()} equipos. Usa --force para re-importar.')
+            return
 
         Equipo.objects.all().delete()
 

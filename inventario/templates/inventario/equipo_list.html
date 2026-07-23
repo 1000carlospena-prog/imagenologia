@@ -114,10 +114,10 @@
                                 {% endif %}
                             </td>
                             <td class="text-center" style="white-space:nowrap">
-                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </td>
@@ -173,10 +173,10 @@
                                 {% endif %}
                             </td>
                             <td class="text-center" style="white-space:nowrap">
-                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </td>
@@ -227,10 +227,10 @@
                                 {% endif %}
                             </td>
                             <td class="text-center" style="white-space:nowrap">
-                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <a href="{% url 'equipo_update' eq.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                <a href="{% url 'equipo_delete' eq.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ eq.denominacion|default:eq.tipo }}">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </td>

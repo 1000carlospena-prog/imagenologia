@@ -18,7 +18,7 @@ class PersonaAdmin(admin.ModelAdmin):
 
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
-    list_display = ['numero_orden', 'fecha', 'completada', 'total_acciones', 'total_horas', 'cantidad_personas']
+    list_display = ['numero_orden', 'fecha', 'completada', 'cantidad_personas']
     list_filter = ['completada', 'fecha']
     search_fields = ['numero_orden', 'descripcion']
     inlines = [AsignacionInline]

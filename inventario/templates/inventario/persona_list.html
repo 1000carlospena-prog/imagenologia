@@ -57,10 +57,10 @@
                         <td class="text-center">{{ p.total_hd|default:0|floatformat:1 }}</td>
                         <td class="text-center">{{ p.total_he|default:0|floatformat:1 }}</td>
                         <td class="text-center">
-                            <a href="{% url 'persona_update' p.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                            <a href="{% url 'persona_update' p.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar {{ p.nombre }} {{ p.apellido }}">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="{% url 'persona_delete' p.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                            <a href="{% url 'persona_delete' p.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar {{ p.nombre }} {{ p.apellido }}">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>

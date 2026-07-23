@@ -3,7 +3,7 @@
 ## Tech Stack
 - **Framework:** Django 4.2+ (Python)
 - **Database:** SQLite (dev) / PostgreSQL (production, via Render)
-- **Frontend:** Bootstrap 5.3.3, Bootstrap Icons, Chart.js
+- **Frontend:** Bootstrap 5.3.3, Bootstrap Icons
 - **Static files:** WhiteNoise
 - **Server:** Gunicorn
 - **Deploy:** Render (Blueprint via `render.yaml` + manual Web Service)
@@ -28,7 +28,7 @@ inventario/                   # Main app
 ├── migrations/               # 7 migrations
 ├── templatetags/
 │   └── inventario_tags.py    # Custom template tags/filters
-├── templates/inventario/     # 14 HTML templates
+├── templates/inventario/     # 13 HTML templates
 └── static/inventario/
     ├── css/style.css         # Custom styles
     └── js/main.js            # Alert auto-dismiss (5s)
@@ -74,10 +74,10 @@ Equipo                                       (inventory)
 
 ## Equipment Import System
 - 4 Excel files in `data/` directory (imported from `C:\Users\Carlos\Desktop\exel\`)
-- Run: `python manage.py importar_equipos` (skips if data exists) or `--force` to re-import
+- Run: `python manage.py importar_equipos` (auto-skips if equipos exist) or `--force` to re-import
 - Files: RX Provincia x marca, USD x Marcas, USD x Municipios, Plan de Mtto
 - USD x Municipios uses dynamic header detection (varies per sheet)
-- ~462 equipos imported total
+- ~462 equipos imported total (persistent — import no longer auto-runs on deploy)
 
 ## Forms
 - `EquipoForm`: all fields editable, `estado` uses TextInput with HTML5 datalist for suggestions from existing values
@@ -106,15 +106,26 @@ python manage.py createsu --password=micontraseña
 python manage.py runserver
 ```
 
+> Note: After first deploy, `importar_equipos` auto-skips if data exists. Use `--force` to re-import from Excel.
+
 ## Deployment (Render)
 - **URL:** `https://rximagenologiastgo.onrender.com`
 - **Admin:** user `rximagenologia`, password `59968839`
 - **DB:** Uses existing PostgreSQL from `cmpf` project (`cmpf-db`)
 - **Deploy Hook:** `https://api.render.com/deploy/srv-d9go22svikkc739q7nb0?key=GByPRq7pM-Y`
-- **Procfile:** `web: python manage.py migrate && python manage.py importar_equipos && gunicorn ...`
+- **Procfile:** `web: python manage.py migrate && gunicorn ...`
 - **render.yaml** defines web service + PostgreSQL database
 - Build runs `collectstatic --noinput`, static via WhiteNoise
-- After first deploy with `--force`, remove flag to preserve manual edits
+
+## Accessibility & UI
+- Icon-only buttons/links have `aria-label`
+- `btn-close` buttons have `aria-label="Cerrar"`
+- Messages container uses `aria-live="polite"` for async updates
+- Admin link only visible to superusers (`user.is_superuser`)
+- All forms have `autocomplete` attributes (username/password for login, `off` for internal forms, semantic values for personal data)
+- CDN resources use `<link rel="preconnect">` for performance
+- No `transition: all` — properties listed explicitly
+- No Chart.js (removed as dead code)
 
 ## Conventions
 - **Language:** Spanish (es-mx), Mexico City timezone

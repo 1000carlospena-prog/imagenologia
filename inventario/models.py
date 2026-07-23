@@ -1,6 +1,5 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
 
 
 class Persona(models.Model):
@@ -20,15 +19,6 @@ class Persona(models.Model):
     def __str__(self):
         return f'{self.nombre} {self.apellido}'
 
-    def total_acciones(self):
-        return self.asignaciones.aggregate(total=models.Sum('acciones'))['total'] or 0
-
-    def total_horas_diurnas(self):
-        return self.asignaciones.aggregate(total=models.Sum('horas_diurnas'))['total'] or 0
-
-    def total_horas_extras(self):
-        return self.asignaciones.aggregate(total=models.Sum('horas_extras'))['total'] or 0
-
 
 class OrdenTrabajo(models.Model):
     numero_orden = models.CharField('N° de Orden', max_length=50, unique=True)
@@ -45,16 +35,6 @@ class OrdenTrabajo(models.Model):
 
     def __str__(self):
         return f'OT-{self.numero_orden}'
-
-    def total_acciones(self):
-        return self.asignaciones.aggregate(total=models.Sum('acciones'))['total'] or 0
-
-    def total_horas(self):
-        aggr = self.asignaciones.aggregate(
-            diurnas=models.Sum('horas_diurnas'),
-            extras=models.Sum('horas_extras'),
-        )
-        return (aggr['diurnas'] or 0) + (aggr['extras'] or 0)
 
     def cantidad_personas(self):
         return self.asignaciones.values('persona').distinct().count()

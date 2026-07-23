@@ -64,13 +64,13 @@
                         <td class="text-center">{{ o.total_pers|default:0 }}</td>
                         <td class="text-center">{{ o.total_act|default:0 }}</td>
                         <td class="text-center">
-                            <a href="{% url 'orden_detail' o.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalle">
+                            <a href="{% url 'orden_detail' o.pk %}" class="btn btn-sm btn-outline-info" title="Ver detalle" aria-label="Ver detalle OT-{{ o.numero_orden }}">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{% url 'orden_update' o.pk %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                            <a href="{% url 'orden_update' o.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar OT-{{ o.numero_orden }}">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="{% url 'orden_delete' o.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                            <a href="{% url 'orden_delete' o.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar OT-{{ o.numero_orden }}">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>

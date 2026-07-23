@@ -29,5 +29,4 @@ media/uploads/
 Thumbs.db
 .DS_Store
 
-# Project specific
-.env
+
