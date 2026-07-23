@@ -72,10 +72,6 @@ body {
     background-color: rgba(13, 110, 253, 0.05) !important;
 }
 
-.persona-hours input {
-    font-size: 0.85rem;
-}
-
 .min-vh-100 {
     min-height: 100vh;
 }

@@ -74,6 +74,27 @@
                         </div>
                     </div>
 
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-clock"></i> Horas trabajadas
+                            </label>
+                            {{ form.horas_trabajadas }}
+                            {% if form.horas_trabajadas.errors %}
+                                <div class="text-danger small">{{ form.horas_trabajadas.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-moon-stars"></i> Horas extra
+                            </label>
+                            {{ form.horas_extras }}
+                            {% if form.horas_extras.errors %}
+                                <div class="text-danger small">{{ form.horas_extras.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label fw-semibold">
                             <i class="bi bi-people"></i> Personas que trabajaron
@@ -86,25 +107,11 @@
                                             <div class="form-check">
                                                 <input type="checkbox" name="personas" value="{{ persona.pk }}"
                                                        id="id_personas_{{ persona.pk }}"
-                                                       class="form-check-input persona-checkbox"
+                                                       class="form-check-input"
                                                        {% if persona.pk in personas_iniciales %}checked{% endif %}>
                                                 <label class="form-check-label" for="id_personas_{{ persona.pk }}">
                                                     {{ persona.apellido }} {{ persona.nombre }}
                                                 </label>
-                                            </div>
-                                            <div class="persona-hours ms-4 mt-1" id="hours_{{ persona.pk }}" style="display:none;">
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <input type="number" name="horas_trabajadas_{{ persona.pk }}"
-                                                               class="form-control form-control-sm"
-                                                               placeholder="H. trabajadas" min="0" step="0.5">
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <input type="number" name="horas_extras_{{ persona.pk }}"
-                                                               class="form-control form-control-sm"
-                                                               placeholder="H. extra" min="0" step="0.5">
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     {% endfor %}
@@ -114,7 +121,6 @@
                         {% if form.personas.errors %}
                             <div class="text-danger small mt-1">{{ form.personas.errors|striptags }}</div>
                         {% endif %}
-                        <div class="form-text">Selecciona las personas y asigna sus horas trabajadas y extras.</div>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -147,18 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     accionesInput.addEventListener('input', calcTotal);
     equiposInput.addEventListener('input', calcTotal);
-
-    var checkboxes = document.querySelectorAll('.persona-checkbox');
-    checkboxes.forEach(function(cb) {
-        function toggleHours() {
-            var hoursDiv = document.getElementById('hours_' + cb.value);
-            if (hoursDiv) {
-                hoursDiv.style.display = cb.checked ? 'block' : 'none';
-            }
-        }
-        cb.addEventListener('change', toggleHours);
-        toggleHours();
-    });
 
     var fechaInicio = document.getElementById('id_fecha_inicio');
     var fechaFin = document.getElementById('id_fecha_fin');

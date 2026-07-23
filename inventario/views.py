@@ -8,7 +8,7 @@ from django.utils import timezone
 from datetime import timedelta, datetime, date
 import calendar
 from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona
-from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, PartePersonaForm
+from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm
 
 
 def _mes_actual_range():
@@ -377,22 +377,15 @@ def generar_orden(request):
                     'fecha_max': fecha_max,
                 })
 
-            horas_data = {}
-            for key, value in request.POST.items():
-                if key.startswith('horas_trabajadas_'):
-                    pid = key.replace('horas_trabajadas_', '')
-                    horas_data[pid] = {
-                        'horas_trabajadas': value,
-                        'horas_extras': request.POST.get(f'horas_extras_{pid}', 0),
-                    }
+            horas_trabajadas = form.cleaned_data.get('horas_trabajadas') or 0
+            horas_extras = form.cleaned_data.get('horas_extras') or 0
 
             for p in personas_seleccionadas:
-                data = horas_data.get(str(p.pk), {'horas_trabajadas': 0, 'horas_extras': 0})
                 PartePersona.objects.create(
                     parte=parte,
                     persona=p,
-                    horas_trabajadas=data['horas_trabajadas'],
-                    horas_extras=data['horas_extras'],
+                    horas_trabajadas=horas_trabajadas,
+                    horas_extras=horas_extras,
                 )
 
             messages.success(request, 'Parte de trabajo creado correctamente.')

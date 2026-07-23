@@ -81,6 +81,18 @@ class ParteTrabajoForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
         label='Personas que trabajaron'
     )
+    horas_trabajadas = forms.DecimalField(
+        label='Horas trabajadas',
+        max_digits=6, decimal_places=2, min_value=0,
+        initial=0,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5})
+    )
+    horas_extras = forms.DecimalField(
+        label='Horas extra',
+        max_digits=6, decimal_places=2, min_value=0,
+        initial=0,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5})
+    )
 
     class Meta:
         model = ParteTrabajo
@@ -138,14 +150,4 @@ class ParteTrabajoForm(forms.ModelForm):
         return cleaned
 
 
-class PartePersonaForm(forms.Form):
-    horas_trabajadas = forms.DecimalField(
-        label='Horas trabajadas',
-        max_digits=6, decimal_places=2, min_value=0,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5})
-    )
-    horas_extras = forms.DecimalField(
-        label='Horas extra',
-        max_digits=6, decimal_places=2, min_value=0,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': 0.5})
-    )
+
