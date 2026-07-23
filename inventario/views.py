@@ -698,13 +698,13 @@ def _equipo_choices():
     import json
     from collections import defaultdict
     estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+    unidades = list(Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud'))
     municipios = Equipo.objects.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
     mun_unidad = defaultdict(set)
     for eq in Equipo.objects.exclude(municipio='').exclude(unidad_salud='').values('municipio', 'unidad_salud').distinct():
         mun_unidad[eq['municipio']].add(eq['unidad_salud'])
     mun_unidad_json = {m: sorted(list(u)) for m, u in mun_unidad.items()}
-    return estados, unidades, municipios, json.dumps(mun_unidad_json)
+    return estados, unidades, municipios, json.dumps(mun_unidad_json), json.dumps(unidades)
 
 
 def equipo_ubicacion(request, pk):
@@ -725,11 +725,12 @@ def equipo_create(request):
             return redirect('equipo_list')
     else:
         form = EquipoForm()
-    estados, unidades, municipios, mun_unidad_json = _equipo_choices()
+    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices()
     return render(request, 'inventario/equipo_form.html', {
         'form': form, 'crear': True, 'estados': estados,
         'unidades': unidades, 'municipios': municipios,
         'mun_unidad_json': mun_unidad_json,
+        'all_unidades_json': all_unidades_json,
     })
 
 
@@ -745,11 +746,12 @@ def equipo_update(request, pk):
             return redirect('equipo_list')
     else:
         form = EquipoForm(instance=equipo)
-    estados, unidades, municipios, mun_unidad_json = _equipo_choices()
+    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices()
     return render(request, 'inventario/equipo_form.html', {
         'form': form, 'crear': False, 'equipo': equipo,
         'estados': estados, 'unidades': unidades, 'municipios': municipios,
         'mun_unidad_json': mun_unidad_json,
+        'all_unidades_json': all_unidades_json,
     })
 
 

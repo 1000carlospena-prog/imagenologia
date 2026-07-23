@@ -64,6 +64,11 @@
                             <option value="{{ m }}">
                         {% endfor %}
                     </datalist>
+                    <datalist id="unidad-sugerencias">
+                        {% for u in unidades %}
+                            <option value="{{ u }}">
+                        {% endfor %}
+                    </datalist>
                     <datalist id="municipio-temporal-sugerencias">
                         {% for m in municipios %}
                             <option value="{{ m }}">
@@ -93,11 +98,10 @@
 {% block extra_scripts %}
 <script>
 var munUnidad = {{ mun_unidad_json|safe }};
+var allUnidades = {{ all_unidades_json|safe }};
 
-function filterUnidad(municipioInput, datalistId) {
-    var mun = municipioInput.value.trim();
+function filterUnidad(datalistId, unidades) {
     var datalist = document.getElementById(datalistId);
-    var unidades = munUnidad[mun] || [];
     datalist.innerHTML = '';
     unidades.forEach(function(u) {
         var opt = document.createElement('option');
@@ -106,32 +110,21 @@ function filterUnidad(municipioInput, datalistId) {
     });
 }
 
-function filterUnidadSelect() {
-    var mun = municipioInput.value.trim();
-    var unidades = munUnidad[mun] || [];
-    allUnidadOptions.forEach(function(opt) {
-        if (!opt.value) return;
-        if (!mun || unidades.indexOf(opt.value) !== -1) {
-            opt.style.display = '';
-        } else {
-            opt.style.display = 'none';
-        }
-    });
-}
-
 var municipioInput = document.getElementById('id_municipio');
-var unidadSelect = document.getElementById('id_unidad_salud');
-var allUnidadOptions = [];
-if (municipioInput && unidadSelect) {
-    allUnidadOptions = Array.from(unidadSelect.options);
-    municipioInput.addEventListener('input', filterUnidadSelect);
-    filterUnidadSelect();
+if (municipioInput) {
+    municipioInput.addEventListener('input', function() {
+        var mun = municipioInput.value.trim();
+        var unidades = mun ? (munUnidad[mun] || []) : allUnidades;
+        filterUnidad('unidad-sugerencias', unidades);
+    });
 }
 
 var tempMunInput = document.getElementById('id_ubicacion_temporal_municipio');
 if (tempMunInput) {
     tempMunInput.addEventListener('input', function() {
-        filterUnidad(tempMunInput, 'unidad-temporal-sugerencias');
+        var mun = tempMunInput.value.trim();
+        var unidades = mun ? (munUnidad[mun] || []) : allUnidades;
+        filterUnidad('unidad-temporal-sugerencias', unidades);
     });
 }
 </script>

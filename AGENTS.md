@@ -90,7 +90,7 @@ Equipo                                       (inventory)
 - All equipos assigned to "Santiago de Cuba" municipio (Jul 2026)
 
 ## Forms
-- `EquipoForm`: all fields editable, `estado` uses TextInput with HTML5 datalist for suggestions from existing values, `municipio`/`unidad_salud` use datalists with JS filtering (unidad options depend on selected municipio)
+- `EquipoForm`: all fields editable, `unidad_salud` uses `Select` with all distinct DB values + JS filtering by selected municipio, `estado` uses TextInput with HTML5 datalist for suggestions from existing values, `municipio` uses TextInput with datalist
 - `ParteTrabajoForm`: CheckboxSelectMultiple for personas, global horas_trabajadas/horas_extras fields
 - Filters on equipo_list: marca, modelo, unidad_salud, municipio, estado — all populated with distinct DB values
 
