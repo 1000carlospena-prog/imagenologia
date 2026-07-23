@@ -377,7 +377,7 @@ def generar_orden(request):
                 )
 
             messages.success(request, 'Parte de trabajo creado correctamente.')
-            return redirect('parte_list')
+            return redirect('orden_list')
     else:
         form = ParteTrabajoForm(persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
 
@@ -388,22 +388,6 @@ def generar_orden(request):
         'fecha_min': fecha_min,
         'fecha_max': fecha_max,
     })
-
-
-def parte_list(request):
-    if not request.user.is_authenticated:
-        return redirect('login')
-    partes = ParteTrabajo.objects.prefetch_related('personas__persona', 'creado_por').order_by('-fecha_creacion')
-    return render(request, 'inventario/parte_list.html', {'partes': partes})
-
-
-def parte_delete(request, pk):
-    parte = get_object_or_404(ParteTrabajo, pk=pk)
-    if request.method == 'POST':
-        parte.delete()
-        messages.success(request, 'Parte de trabajo eliminado correctamente.')
-        return redirect('parte_list')
-    return render(request, 'inventario/parte_confirm_delete.html', {'parte': parte})
 
 
 def equipo_list(request):
