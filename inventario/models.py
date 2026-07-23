@@ -144,12 +144,7 @@ class Equipo(models.Model):
     marca = models.CharField('Marca', max_length=300, blank=True)
     modelo = models.CharField('Modelo', max_length=300, blank=True)
     numero_serie = models.CharField('N° de Serie', max_length=300, blank=True)
-    estado = models.CharField('Estado', max_length=100, blank=True, choices=[
-        ('', '---'),
-        ('Funcionando', 'Funcionando'),
-        ('Afectado', 'Afectado'),
-        ('Roto', 'Roto'),
-    ])
+    estado = models.CharField('Estado', max_length=100, blank=True)
     observaciones = models.TextField('Observaciones', blank=True)
     frecuencia = models.CharField('Frecuencia de mantenimiento', max_length=200, blank=True)
     fuente = models.CharField('Archivo fuente', max_length=100, blank=True)

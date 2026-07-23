@@ -482,4 +482,5 @@ def equipo_update(request, pk):
             return redirect('equipo_list')
     else:
         form = EquipoForm(instance=equipo)
-    return render(request, 'inventario/equipo_form.html', {'form': form, 'equipo': equipo})
+    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
+    return render(request, 'inventario/equipo_form.html', {'form': form, 'equipo': equipo, 'estados': estados})
