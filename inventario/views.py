@@ -1,10 +1,10 @@
+from datetime import date, datetime
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.utils import timezone
-from datetime import date
 import calendar
 from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria
 from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
@@ -27,6 +27,34 @@ def _mes_actual_range():
     ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
     fin_mes = date(hoy.year, hoy.month, ultimo_dia)
     return inicio_mes, fin_mes
+
+
+def _periodos_anteriores():
+    from itertools import chain
+    rangos = set()
+    for p in ParteTrabajo.objects.values_list('fecha_inicio', 'fecha_fin').distinct():
+        rangos.add((p[0], p[1]))
+    for a in Asignacion.objects.values_list('fecha', flat=True).distinct():
+        inicio = date(a.year, a.month, 1)
+        ultimo = calendar.monthrange(a.year, a.month)[1]
+        fin = date(a.year, a.month, ultimo)
+        rangos.add((inicio, fin))
+    periodos = []
+    for inicio, fin in rangos:
+        total_acciones = (
+            Asignacion.objects.filter(fecha__gte=inicio, fecha__lte=fin)
+            .aggregate(t=Sum('acciones'))['t'] or 0
+        ) + (
+            ParteTrabajo.objects.filter(fecha_inicio__gte=inicio, fecha_fin__lte=fin)
+            .aggregate(t=Sum('total_acciones'))['t'] or 0
+        )
+        periodos.append({
+            'inicio': inicio,
+            'fin': fin,
+            'total_acciones': total_acciones,
+        })
+    periodos.sort(key=lambda x: x['fin'], reverse=True)
+    return periodos
 
 
 def login_view(request):
@@ -95,23 +123,39 @@ def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
     persona_id = request.session.get('persona_id')
-    inicio_mes, fin_mes = _mes_actual_range()
+
+    fi = request.GET.get('fecha_inicio', '')
+    ff = request.GET.get('fecha_fin', '')
+    if fi and ff:
+        try:
+            inicio = datetime.strptime(fi, '%Y-%m-%d').date()
+            fin = datetime.strptime(ff, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            inicio, fin = _mes_actual_range()
+    else:
+        inicio, fin = _mes_actual_range()
 
     personas = Persona.objects.filter(activo=True).annotate(
-        total_act=Sum('asignaciones__acciones'),
-        total_hd=Sum('asignaciones__horas_diurnas'),
-        total_he=Sum('asignaciones__horas_extras'),
+        total_act=Sum('asignaciones__acciones', filter=Q(
+            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+        )),
+        total_hd=Sum('asignaciones__horas_diurnas', filter=Q(
+            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+        )),
+        total_he=Sum('asignaciones__horas_extras', filter=Q(
+            asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
+        )),
         partes_act=Sum('partes__parte__total_acciones', filter=Q(
-            partes__parte__fecha_inicio__gte=inicio_mes,
-            partes__parte__fecha_fin__lte=fin_mes,
+            partes__parte__fecha_inicio__gte=inicio,
+            partes__parte__fecha_fin__lte=fin,
         )),
         partes_hd=Sum('partes__horas_trabajadas', filter=Q(
-            partes__parte__fecha_inicio__gte=inicio_mes,
-            partes__parte__fecha_fin__lte=fin_mes,
+            partes__parte__fecha_inicio__gte=inicio,
+            partes__parte__fecha_fin__lte=fin,
         )),
         partes_he=Sum('partes__horas_extras', filter=Q(
-            partes__parte__fecha_inicio__gte=inicio_mes,
-            partes__parte__fecha_fin__lte=fin_mes,
+            partes__parte__fecha_inicio__gte=inicio,
+            partes__parte__fecha_fin__lte=fin,
         )),
     ).order_by('apellido', 'nombre')
 
@@ -120,7 +164,7 @@ def dashboard(request):
         p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
         p.total_he = (p.total_he or 0) + (p.partes_he or 0)
         p.total_horas = p.total_hd + p.total_he
-        p.filtro_mes = f'{inicio_mes:%d/%m/%Y} - {fin_mes:%d/%m/%Y}'
+        p.filtro_mes = f'{inicio:%d/%m/%Y} - {fin:%d/%m/%Y}'
 
     try:
         persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
@@ -130,15 +174,17 @@ def dashboard(request):
     total_acciones_global = sum(p.total_act for p in personas)
     total_horas_global = sum(p.total_horas for p in personas)
     total_he_global = sum(p.total_he for p in personas)
+    periodos = _periodos_anteriores()
 
     context = {
         'personas': personas,
         'persona_actual': persona_actual,
-        'inicio_mes': inicio_mes,
-        'fin_mes': fin_mes,
+        'inicio': inicio,
+        'fin': fin,
         'total_acciones_global': total_acciones_global,
         'total_horas_global': total_horas_global,
         'total_he_global': total_he_global,
+        'periodos': periodos,
     }
     return render(request, 'inventario/dashboard.html', context)
 
@@ -604,6 +650,45 @@ def equipo_duplicados(request):
     return render(request, 'inventario/equipo_duplicados.html', {
         'grupos': grupos,
         'total_duplicados': len(grupos),
+    })
+
+
+def periodo_delete(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    fi = request.POST.get('fecha_inicio') or request.GET.get('fecha_inicio', '')
+    ff = request.POST.get('fecha_fin') or request.GET.get('fecha_fin', '')
+    if not fi or not ff:
+        messages.error(request, 'Debes especificar un periodo.')
+        return redirect('dashboard')
+    try:
+        inicio = datetime.strptime(fi, '%Y-%m-%d').date()
+        fin = datetime.strptime(ff, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        messages.error(request, 'Fechas inválidas.')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        partes = ParteTrabajo.objects.filter(fecha_inicio__gte=inicio, fecha_fin__lte=fin)
+        cant_partes = partes.count()
+        partes.delete()
+
+        asignaciones = Asignacion.objects.filter(fecha__gte=inicio, fecha__lte=fin)
+        cant_asig = asignaciones.count()
+        asignaciones.delete()
+
+        OrdenTrabajo.objects.filter(~Q(asignaciones__pk__isnull=False)).delete()
+
+        messages.success(
+            request,
+            f'Periodo {inicio:%d/%m/%Y} – {fin:%d/%m/%Y} eliminado: '
+            f'{cant_partes} parte(s) y {cant_asig} asignacion(es).'
+        )
+        return redirect('dashboard')
+
+    return render(request, 'inventario/periodo_confirm_delete.html', {
+        'inicio': inicio,
+        'fin': fin,
     })
 
 
