@@ -164,3 +164,29 @@ class PartePersona(models.Model):
 
     def __str__(self):
         return f'{self.persona} - Parte {self.parte_id}'
+
+
+class Auditoria(models.Model):
+    ACCIONES = [
+        ('editar', 'Editar'),
+        ('eliminar', 'Eliminar'),
+    ]
+
+    usuario = models.ForeignKey(
+        Persona, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name='Usuario'
+    )
+    accion = models.CharField('Acción', max_length=20, choices=ACCIONES)
+    modelo = models.CharField('Modelo', max_length=50)
+    objeto_id = models.PositiveIntegerField('ID del objeto')
+    descripcion = models.TextField('Descripción')
+    fecha = models.DateTimeField('Fecha', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Auditoría'
+        verbose_name_plural = 'Auditorías'
+        ordering = ['-fecha']
+
+    def __str__(self):
+        usuario_str = str(self.usuario) if self.usuario else '—'
+        return f'{self.get_accion_display()} {self.modelo} #{self.objeto_id} por {usuario_str}'

@@ -27,4 +27,5 @@ urlpatterns = [
     path('equipos/<int:pk>/editar/', views.equipo_update, name='equipo_update'),
     path('equipos/<int:pk>/eliminar/', views.equipo_delete, name='equipo_delete'),
     path('equipos/duplicados/', views.equipo_duplicados, name='equipo_duplicados'),
+    path('historial/', views.historial, name='historial'),
 ]

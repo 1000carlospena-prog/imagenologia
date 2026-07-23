@@ -6,8 +6,19 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import date
 import calendar
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo
+from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria
 from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
+
+
+def _auditar(request, accion, modelo, objeto_id, descripcion):
+    if request.user.is_superuser:
+        return
+    persona_id = request.session.get('persona_id')
+    persona = Persona.objects.filter(pk=persona_id).first() if persona_id else None
+    Auditoria.objects.create(
+        usuario=persona, accion=accion, modelo=modelo,
+        objeto_id=objeto_id, descripcion=descripcion,
+    )
 
 
 def _mes_actual_range():
@@ -170,10 +181,12 @@ def persona_create(request):
 
 def persona_update(request, pk):
     persona = get_object_or_404(Persona, pk=pk)
+    desc = str(persona)
     if request.method == 'POST':
         form = PersonaForm(request.POST, instance=persona)
         if form.is_valid():
             form.save()
+            _auditar(request, 'editar', 'Persona', persona.pk, desc)
             messages.success(request, 'Persona actualizada correctamente.')
             return redirect('persona_list')
     else:
@@ -185,10 +198,11 @@ def persona_update(request, pk):
 
 def persona_delete(request, pk):
     persona = get_object_or_404(Persona, pk=pk)
+    desc = str(persona)
     if request.method == 'POST':
-        nombre = str(persona)
+        _auditar(request, 'eliminar', 'Persona', persona.pk, desc)
         persona.delete()
-        messages.success(request, f'Persona "{nombre}" eliminada correctamente.')
+        messages.success(request, f'Persona "{desc}" eliminada correctamente.')
         return redirect('persona_list')
     return render(request, 'inventario/persona_confirm_delete.html', {'persona': persona})
 
@@ -296,10 +310,12 @@ def orden_create(request):
 
 def orden_update(request, pk):
     orden = get_object_or_404(OrdenTrabajo, pk=pk)
+    desc = str(orden)
     if request.method == 'POST':
         form = OrdenTrabajoForm(request.POST, instance=orden)
         if form.is_valid():
             form.save()
+            _auditar(request, 'editar', 'Orden de Trabajo', orden.pk, desc)
             messages.success(request, 'Orden de Trabajo actualizada correctamente.')
             return redirect('orden_detail', pk=orden.pk)
     else:
@@ -347,10 +363,11 @@ def orden_detail(request, pk):
 
 def orden_delete(request, pk):
     orden = get_object_or_404(OrdenTrabajo, pk=pk)
+    desc = str(orden)
     if request.method == 'POST':
-        num = orden.numero_orden
+        _auditar(request, 'eliminar', 'Orden de Trabajo', orden.pk, desc)
         orden.delete()
-        messages.success(request, f'Orden de Trabajo OT-{num} eliminada correctamente.')
+        messages.success(request, f'{desc} eliminada correctamente.')
         return redirect('orden_list')
     return render(request, 'inventario/orden_confirm_delete.html', {'orden': orden})
 
@@ -544,10 +561,12 @@ def equipo_create(request):
 
 def equipo_update(request, pk):
     equipo = get_object_or_404(Equipo, pk=pk)
+    desc = str(equipo)
     if request.method == 'POST':
         form = EquipoForm(request.POST, instance=equipo)
         if form.is_valid():
             form.save()
+            _auditar(request, 'editar', 'Equipo', equipo.pk, desc)
             messages.success(request, 'Equipo actualizado.')
             return redirect('equipo_list')
     else:
@@ -558,7 +577,9 @@ def equipo_update(request, pk):
 
 def equipo_delete(request, pk):
     equipo = get_object_or_404(Equipo, pk=pk)
+    desc = str(equipo)
     if request.method == 'POST':
+        _auditar(request, 'eliminar', 'Equipo', equipo.pk, desc)
         equipo.delete()
         messages.success(request, 'Equipo eliminado.')
         return redirect('equipo_list')
@@ -584,3 +605,13 @@ def equipo_duplicados(request):
         'grupos': grupos,
         'total_duplicados': len(grupos),
     })
+
+
+def historial(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    logs = Auditoria.objects.select_related('usuario').all()
+    paginator = Paginator(logs, 50)
+    page = request.GET.get('page', 1)
+    logs_page = paginator.get_page(page)
+    return render(request, 'inventario/historial.html', {'logs': logs_page})
