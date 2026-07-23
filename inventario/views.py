@@ -507,3 +507,24 @@ def equipo_delete(request, pk):
         messages.success(request, 'Equipo eliminado.')
         return redirect('equipo_list')
     return render(request, 'inventario/equipo_confirm_delete.html', {'equipo': equipo})
+
+
+def equipo_duplicados(request):
+    from django.db.models import Count
+    dups = Equipo.objects.values('numero_serie').exclude(numero_serie='').annotate(
+        count=Count('id')
+    ).filter(count__gt=1).order_by('-count')
+
+    grupos = []
+    for d in dups:
+        equipos = Equipo.objects.filter(numero_serie=d['numero_serie'])
+        grupos.append({
+            'numero_serie': d['numero_serie'],
+            'count': d['count'],
+            'equipos': equipos,
+        })
+
+    return render(request, 'inventario/equipo_duplicados.html', {
+        'grupos': grupos,
+        'total_duplicados': len(grupos),
+    })
