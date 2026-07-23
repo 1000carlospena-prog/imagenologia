@@ -40,4 +40,5 @@ urlpatterns = [
     path('admin-panel/eliminar-enlace/<int:pk>/', views.eliminar_enlace, name='eliminar_enlace'),
     path('visitar/<uuid:uuid_code>/', views.visitar, name='visitar'),
     path('visitar/<uuid:uuid_code>/entrar/', views.visitar_entrar, name='visitar_entrar'),
+    path('exit-visitor/', views.exit_visitor, name='exit_visitor'),
 ]

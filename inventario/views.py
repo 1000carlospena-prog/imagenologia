@@ -59,8 +59,8 @@ def login_view(request):
 
 def logout_view(request):
     auth_logout(request)
-    if 'persona_id' in request.session:
-        del request.session['persona_id']
+    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id']:
+        request.session.pop(key, None)
     messages.info(request, 'Sesión cerrada correctamente.')
     return redirect('login')
 
@@ -932,6 +932,10 @@ def visitar_entrar(request, uuid_code):
     if enlace.usado:
         messages.error(request, 'Este enlace de visita ya fue usado.')
         return redirect('login')
+    if request.user.is_authenticated:
+        auth_logout(request)
+        for key in ['persona_id', 'persona_nombre']:
+            request.session.pop(key, None)
     enlace.usado = True
     enlace.fecha_uso = timezone.now()
     enlace.save(update_fields=['usado', 'fecha_uso'])
@@ -952,3 +956,10 @@ def visitar(request, uuid_code):
         'enlace': enlace,
         'action': reverse('visitar_entrar', args=[uuid_code]),
     })
+
+
+def exit_visitor(request):
+    for key in ['is_visitor', 'visitor_link_id', 'persona_id', 'persona_nombre']:
+        request.session.pop(key, None)
+    messages.info(request, 'Has salido del modo visita.')
+    return redirect('login')
