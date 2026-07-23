@@ -22,23 +22,11 @@
                 </select>
             </div>
             <div class="col-auto">
-                <a href="{% url 'periodo_create' %}" class="btn btn-outline-primary btn-responsive">
-                    <i class="bi bi-plus-lg"></i> Crear periodo
-                </a>
-            </div>
-            <div class="col-auto">
                 <a href="{% url 'periodo_list' %}" class="btn btn-outline-secondary btn-responsive">
                     <i class="bi bi-list"></i> Gestionar
                 </a>
             </div>
         </form>
-    </div>
-    <div class="col-auto ms-auto">
-        {% if periodo_activo %}
-        <a href="{% url 'periodo_delete' periodo_activo.pk %}" class="btn btn-outline-danger btn-responsive">
-            <i class="bi bi-trash"></i> Borrar este periodo
-        </a>
-        {% endif %}
     </div>
 </div>
 

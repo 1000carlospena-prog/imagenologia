@@ -17,83 +17,75 @@
 </head>
 <body>
     <a href="#main-content" class="visually-hidden-focusable d-inline-flex align-items-center p-2 text-decoration-none" style="position:absolute;z-index:9999">Saltar al contenido</a>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top py-1 fb-nav">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold py-0" href="{% url 'dashboard' %}">
-                <i class="bi bi-clipboard-data"></i>
+    <nav class="navbar navbar-dark bg-primary shadow-sm sticky-top py-1 fb-nav">
+        <div class="container-fluid d-flex flex-nowrap gap-1 gap-sm-2">
+            <a class="navbar-brand fw-bold py-0 flex-shrink-0" href="{% url 'dashboard' %}">
+                <i class="bi bi-clipboard-data fs-5"></i>
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-label="Abrir menú">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav mx-auto fb-icons">
+            <ul class="nav nav-pills mx-auto fb-icons flex-nowrap overflow-auto">
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3 {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}" title="Dashboard">
+                        <i class="bi bi-house-door fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'persona' in request.path %}active{% endif %}" href="{% url 'persona_list' %}" title="Personas">
+                        <i class="bi bi-people fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Personas</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'orden' in request.path and 'generar-orden' not in request.path %}active{% endif %}" href="{% url 'orden_list' %}" title="Órdenes">
+                        <i class="bi bi-file-earmark-text fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Órdenes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'historial' in request.path %}active{% endif %}" href="{% url 'historial' %}" title="Historial">
+                        <i class="bi bi-clock-history fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Historial</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'equipo' in request.path %}active{% endif %}" href="{% url 'equipo_list' %}" title="Equipos">
+                        <i class="bi bi-tools fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Equipos</span>
+                    </a>
+                </li>
+                <li class="nav-item align-self-center mx-1 flex-shrink-0 d-none d-sm-block">
+                    <div style="width:1px;height:20px;background:rgba(255,255,255,0.2)"></div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3" href="{% url 'generar_orden' %}" title="Generar orden">
+                        <i class="bi bi-plus-circle fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Nuevo</span>
+                    </a>
+                </li>
+            </ul>
+            <ul class="nav nav-pills fb-extra flex-shrink-0">
+                {% if persona_actual %}
                     <li class="nav-item">
-                        <a class="nav-link text-center px-3 {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}" title="Dashboard">
-                            <i class="bi bi-house-door fs-5"></i>
-                            <span class="d-none d-lg-block small">Dashboard</span>
+                        <a class="nav-link py-1 px-2" href="{% url 'select_persona' %}" title="Cambiar usuario" aria-label="Cambiar usuario">
+                            <i class="bi bi-person-circle fs-5"></i>
                         </a>
                     </li>
+                {% endif %}
+                {% if user.is_superuser %}
                     <li class="nav-item">
-                        <a class="nav-link text-center px-3 {% if 'persona' in request.path %}active{% endif %}" href="{% url 'persona_list' %}" title="Personas">
-                            <i class="bi bi-people fs-5"></i>
-                            <span class="d-none d-lg-block small">Personas</span>
+                        <a class="nav-link py-1 px-2" href="{% url 'admin:index' %}" target="_blank" aria-label="Administración">
+                            <i class="bi bi-shield-lock fs-5"></i>
                         </a>
                     </li>
+                {% endif %}
+                {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link text-center px-3 {% if 'orden' in request.path and 'generar-orden' not in request.path %}active{% endif %}" href="{% url 'orden_list' %}" title="Órdenes">
-                            <i class="bi bi-file-earmark-text fs-5"></i>
-                            <span class="d-none d-lg-block small">Órdenes</span>
+                        <a class="nav-link py-1 px-2" href="{% url 'logout' %}" title="Cerrar sesión" aria-label="Cerrar sesión">
+                            <i class="bi bi-box-arrow-right fs-5"></i>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-center px-3 {% if 'historial' in request.path %}active{% endif %}" href="{% url 'historial' %}" title="Historial">
-                            <i class="bi bi-clock-history fs-5"></i>
-                            <span class="d-none d-lg-block small">Historial</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-center px-3 {% if 'equipo' in request.path %}active{% endif %}" href="{% url 'equipo_list' %}" title="Equipos">
-                            <i class="bi bi-tools fs-5"></i>
-                            <span class="d-none d-lg-block small">Equipos</span>
-                        </a>
-                    </li>
-                    <li class="nav-item d-none d-lg-block align-self-center mx-1">
-                        <div style="width:1px;height:24px;background:rgba(255,255,255,0.2)"></div>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-center px-3" href="{% url 'generar_orden' %}" title="Generar orden">
-                            <i class="bi bi-plus-circle fs-5"></i>
-                            <span class="d-none d-lg-block small">Nuevo</span>
-                        </a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav align-items-center fb-extra">
-                    {% if persona_actual %}
-                        <li class="nav-item">
-                            <a class="nav-link px-2" href="{% url 'select_persona' %}" title="Cambiar usuario" aria-label="Cambiar usuario">
-                                <i class="bi bi-person-circle fs-5"></i>
-                            </a>
-                        </li>
-                        <li class="nav-item d-none d-sm-block">
-                            <span class="nav-link small text-light-50 px-1">{{ persona_actual.nombre }}</span>
-                        </li>
-                    {% endif %}
-                    {% if user.is_superuser %}
-                        <li class="nav-item">
-                            <a class="nav-link px-2" href="{% url 'admin:index' %}" target="_blank" aria-label="Administración">
-                                <i class="bi bi-shield-lock fs-5"></i>
-                            </a>
-                        </li>
-                    {% endif %}
-                    {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link px-2" href="{% url 'logout' %}" title="Cerrar sesión" aria-label="Cerrar sesión">
-                                <i class="bi bi-box-arrow-right fs-5"></i>
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
+                {% endif %}
+            </ul>
         </div>
     </nav>
 
