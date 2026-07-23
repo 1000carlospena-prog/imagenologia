@@ -1,0 +1,123 @@
+{% extends 'inventario/base.html' %}
+{% block title %}{{ persona.nombre }} {{ persona.apellido }} - Imagenología{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">
+        <i class="bi bi-person-circle"></i> {{ persona.apellido }} {{ persona.nombre }}
+        {% if not persona.activo %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
+    </h3>
+    <div>
+        <a href="{% url 'persona_update' persona.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        <a href="{% url 'persona_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card border-success shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-success mb-1"><i class="bi bi-check2-square"></i> Acciones</h6>
+                <p class="fs-3 fw-bold mb-0">{{ total_act }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-warning mb-1"><i class="bi bi-sun"></i> Horas trabajadas</h6>
+                <p class="fs-3 fw-bold mb-0">{{ total_hd|floatformat:1 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-info mb-1"><i class="bi bi-moon"></i> Horas extra</h6>
+                <p class="fs-3 fw-bold mb-0">{{ total_he|floatformat:1 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info shadow-sm">
+            <div class="card-body text-center">
+                <h6 class="text-info mb-1"><i class="bi bi-calendar-range"></i> Periodo</h6>
+                <p class="fs-6 fw-bold mb-0">{{ inicio|date:'d/m/Y' }} – {{ fin|date:'d/m/Y' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if asignaciones or partes %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-list-task"></i> Órdenes y partes en el periodo</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary">
+                <tr>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Fecha</th>
+                    <th class="text-center">Acciones</th>
+                    <th class="text-center">Horas</th>
+                    <th class="text-center">H. Extra</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in asignaciones %}
+                <tr>
+                    <td><span class="badge bg-primary">OT-{{ a.orden_trabajo.numero_orden }}</span></td>
+                    <td>{{ a.orden_trabajo.descripcion|default:"-"|truncatewords:8 }}</td>
+                    <td>{{ a.fecha|date:'d/m/Y' }}</td>
+                    <td class="text-center">{{ a.acciones }}</td>
+                    <td class="text-center">{{ a.horas_diurnas|floatformat:1 }}</td>
+                    <td class="text-center">{{ a.horas_extras|floatformat:1 }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'orden_detail' a.orden_trabajo.pk %}" class="btn btn-sm btn-outline-primary" title="Editar" aria-label="Editar OT-{{ a.orden_trabajo.numero_orden }}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% for pp in partes %}
+                <tr>
+                    <td><span class="badge bg-success">Parte #{{ pp.parte.pk }}</span></td>
+                    <td>{{ pp.parte.fecha_inicio|date:'d/m/Y' }} – {{ pp.parte.fecha_fin|date:'d/m/Y' }}</td>
+                    <td>{{ pp.parte.fecha_inicio|date:'d/m/Y' }}</td>
+                    <td class="text-center">{{ pp.parte.total_acciones }}</td>
+                    <td class="text-center">{{ pp.horas_trabajadas|floatformat:1 }}</td>
+                    <td class="text-center">{{ pp.horas_extras|floatformat:1 }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'orden_list' %}?persona={{ persona.pk }}" class="btn btn-sm btn-outline-success" title="Ver en órdenes" aria-label="Ver parte #{{ pp.parte.pk }}">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light fw-bold">
+                <tr>
+                    <td colspan="3">TOTAL</td>
+                    <td class="text-center">{{ total_act }}</td>
+                    <td class="text-center">{{ total_hd|floatformat:1 }}</td>
+                    <td class="text-center">{{ total_he|floatformat:1 }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+    No tiene órdenes ni partes en este periodo
+</div>
+{% endif %}
+{% endblock %}

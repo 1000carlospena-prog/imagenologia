@@ -3,10 +3,17 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3><i class="bi bi-people"></i> Personas</h3>
-    <a href="{% url 'persona_create' %}" class="btn btn-success">
-        <i class="bi bi-person-plus"></i> Nueva Persona
-    </a>
+    <h3 class="mb-0"><i class="bi bi-people"></i> Personas</h3>
+    <div class="d-flex align-items-center gap-2">
+        {% if periodo_activo %}
+        <span class="badge bg-info fs-6">
+            <i class="bi bi-calendar-range"></i> {{ periodo_activo.fecha_inicio|date:'d/m/Y' }} – {{ periodo_activo.fecha_fin|date:'d/m/Y' }}
+        </span>
+        {% endif %}
+        <a href="{% url 'persona_create' %}" class="btn btn-success btn-sm">
+            <i class="bi bi-person-plus"></i> Nueva Persona
+        </a>
+    </div>
 </div>
 
 <div class="card shadow-sm">
@@ -33,16 +40,18 @@
                         <th>Teléfono</th>
                         <th class="text-center">Estado</th>
                         <th class="text-center">Acciones</th>
-                        <th class="text-center">H. Diurnas</th>
+                        <th class="text-center">H. Trabajadas</th>
                         <th class="text-center">H. Extra</th>
-                        <th class="text-center">Acciones</th>
+                        <th class="text-center"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in personas %}
                     <tr>
                         <td>
-                            <strong>{{ p.apellido }} {{ p.nombre }}</strong>
+                            <a href="{% url 'persona_detail' p.pk %}" class="text-decoration-none fw-bold">
+                                {{ p.apellido }} {{ p.nombre }}
+                            </a>
                         </td>
                         <td>{{ p.email|default:"-" }}</td>
                         <td>{{ p.telefono|default:"-" }}</td>

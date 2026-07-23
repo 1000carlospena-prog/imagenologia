@@ -1,4 +1,4 @@
-from .models import Persona
+from .models import Persona, Periodo
 
 
 def persona_actual(request):
@@ -8,3 +8,16 @@ def persona_actual(request):
     except Persona.DoesNotExist:
         persona = None
     return {'persona_actual': persona}
+
+
+def periodo_activo(request):
+    periodos = Periodo.objects.all()
+    pk = request.session.get('periodo_pk')
+    if pk:
+        try:
+            periodo = Periodo.objects.get(pk=pk)
+        except Periodo.DoesNotExist:
+            periodo = periodos.first()
+    else:
+        periodo = periodos.first()
+    return {'periodos': periodos, 'periodo_activo': periodo}

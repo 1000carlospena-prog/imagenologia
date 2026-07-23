@@ -20,9 +20,8 @@
     <div class="col-auto">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-auto">
-                <label class="form-label small mb-1">Periodo</label>
+                <label class="form-label small mb-1">Periodo activo</label>
                 <select name="periodo" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">-- Seleccionar --</option>
                     {% for p in periodos %}
                     <option value="{{ p.pk }}" {% if periodo_activo and p.pk == periodo_activo.pk %}selected{% endif %}>
                         {{ p.fecha_inicio|date:'d/m/Y' }} – {{ p.fecha_fin|date:'d/m/Y' }}
@@ -33,6 +32,11 @@
             <div class="col-auto">
                 <a href="{% url 'periodo_create' %}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-plus-lg"></i> Crear periodo
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'periodo_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-list"></i> Gestionar
                 </a>
             </div>
         </form>
@@ -75,7 +79,7 @@
         <div class="card border-info shadow-sm">
             <div class="card-body text-center">
                 <h6 class="text-info mb-1"><i class="bi bi-calendar-range"></i> Periodo</h6>
-                <p class="fs-6 fw-bold mb-0">{{ inicio|date:'d/m/Y' }} - {{ fin|date:'d/m/Y' }}</p>
+                <p class="fs-6 fw-bold mb-0">{{ inicio|date:'d/m/Y' }} – {{ fin|date:'d/m/Y' }}</p>
             </div>
         </div>
     </div>
@@ -97,12 +101,14 @@
                     {% for p in personas %}
                     <tr class="{% if persona_actual and p.pk == persona_actual.pk %}table-active fw-bold{% endif %}">
                         <td>
-                            {% if persona_actual and p.pk == persona_actual.pk %}
-                                <i class="bi bi-person-check-fill text-primary"></i>
-                            {% else %}
-                                <i class="bi bi-person text-muted"></i>
-                            {% endif %}
-                            {{ p.apellido }} {{ p.nombre }}
+                            <a href="{% url 'persona_detail' p.pk %}" class="text-decoration-none">
+                                {% if persona_actual and p.pk == persona_actual.pk %}
+                                    <i class="bi bi-person-check-fill text-primary"></i>
+                                {% else %}
+                                    <i class="bi bi-person text-muted"></i>
+                                {% endif %}
+                                {{ p.apellido }} {{ p.nombre }}
+                            </a>
                         </td>
                         <td class="text-center fw-bold">{{ p.total_act }}</td>
                         <td class="text-center">{{ p.total_horas|floatformat:1 }}</td>

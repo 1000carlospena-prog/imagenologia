@@ -47,6 +47,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'inventario.context_processors.persona_actual',
+                'inventario.context_processors.periodo_activo',
             ],
         },
     },

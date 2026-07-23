@@ -29,14 +29,14 @@ def _mes_actual_range():
     return inicio_mes, fin_mes
 
 
-def _periodo_desde_id(request):
-    pk = request.GET.get('periodo') or request.POST.get('periodo')
+def _get_periodo_activo(request):
+    pk = request.session.get('periodo_pk')
     if pk:
         try:
             return Periodo.objects.get(pk=pk)
-        except (Periodo.DoesNotExist, ValueError):
+        except Periodo.DoesNotExist:
             pass
-    return None
+    return Periodo.objects.first()
 
 
 def login_view(request):
@@ -106,7 +106,16 @@ def dashboard(request):
         return redirect('login')
     persona_id = request.session.get('persona_id')
 
-    periodo = _periodo_desde_id(request)
+    pk = request.GET.get('periodo')
+    if pk:
+        try:
+            periodo = Periodo.objects.get(pk=pk)
+            request.session['periodo_pk'] = periodo.pk
+        except (Periodo.DoesNotExist, ValueError):
+            periodo = _get_periodo_activo(request)
+    else:
+        periodo = _get_periodo_activo(request)
+
     if periodo:
         inicio, fin = periodo.fecha_inicio, periodo.fecha_fin
     else:
@@ -141,7 +150,6 @@ def dashboard(request):
         p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
         p.total_he = (p.total_he or 0) + (p.partes_he or 0)
         p.total_horas = p.total_hd + p.total_he
-        p.filtro_mes = f'{inicio:%d/%m/%Y} - {fin:%d/%m/%Y}'
 
     try:
         persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
@@ -151,24 +159,27 @@ def dashboard(request):
     total_acciones_global = sum(p.total_act for p in personas)
     total_horas_global = sum(p.total_horas for p in personas)
     total_he_global = sum(p.total_he for p in personas)
-    periodos = Periodo.objects.all()
 
     context = {
         'personas': personas,
         'persona_actual': persona_actual,
         'inicio': inicio,
         'fin': fin,
-        'periodo_activo': periodo,
         'total_acciones_global': total_acciones_global,
         'total_horas_global': total_horas_global,
         'total_he_global': total_he_global,
-        'periodos': periodos,
     }
     return render(request, 'inventario/dashboard.html', context)
 
 
 def persona_list(request):
     query = request.GET.get('q', '')
+    periodo = _get_periodo_activo(request)
+    if periodo:
+        fi, ff = periodo.fecha_inicio, periodo.fecha_fin
+    else:
+        fi, ff = _mes_actual_range()
+
     personas = Persona.objects.all()
     if query:
         personas = personas.filter(
@@ -176,10 +187,24 @@ def persona_list(request):
             Q(email__icontains=query) | Q(telefono__icontains=query)
         )
     personas = personas.annotate(
-        total_act=Sum('asignaciones__acciones'),
-        total_hd=Sum('asignaciones__horas_diurnas'),
-        total_he=Sum('asignaciones__horas_extras'),
+        total_act=Sum('asignaciones__acciones', filter=Q(asignaciones__fecha__gte=fi, asignaciones__fecha__lte=ff)),
+        total_hd=Sum('asignaciones__horas_diurnas', filter=Q(asignaciones__fecha__gte=fi, asignaciones__fecha__lte=ff)),
+        total_he=Sum('asignaciones__horas_extras', filter=Q(asignaciones__fecha__gte=fi, asignaciones__fecha__lte=ff)),
+        partes_act=Sum('partes__parte__total_acciones', filter=Q(
+            partes__parte__fecha_inicio__gte=fi, partes__parte__fecha_fin__lte=ff,
+        )),
+        partes_hd=Sum('partes__horas_trabajadas', filter=Q(
+            partes__parte__fecha_inicio__gte=fi, partes__parte__fecha_fin__lte=ff,
+        )),
+        partes_he=Sum('partes__horas_extras', filter=Q(
+            partes__parte__fecha_inicio__gte=fi, partes__parte__fecha_fin__lte=ff,
+        )),
     ).order_by('apellido', 'nombre')
+
+    for p in personas:
+        p.total_act = (p.total_act or 0) + (p.partes_act or 0)
+        p.total_hd = (p.total_hd or 0) + (p.partes_hd or 0)
+        p.total_he = (p.total_he or 0) + (p.partes_he or 0)
 
     paginator = Paginator(personas, 20)
     page = request.GET.get('page', 1)
@@ -229,6 +254,43 @@ def persona_delete(request, pk):
         messages.success(request, f'Persona "{desc}" eliminada correctamente.')
         return redirect('persona_list')
     return render(request, 'inventario/persona_confirm_delete.html', {'persona': persona})
+
+
+def persona_detail(request, pk):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    persona = get_object_or_404(Persona, pk=pk)
+    periodo = _get_periodo_activo(request)
+
+    if periodo:
+        fi, ff = periodo.fecha_inicio, periodo.fecha_fin
+    else:
+        fi, ff = _mes_actual_range()
+
+    asignaciones = Asignacion.objects.filter(
+        persona=persona, fecha__gte=fi, fecha__lte=ff
+    ).select_related('orden_trabajo').order_by('fecha')
+
+    partes = PartePersona.objects.filter(
+        persona=persona,
+        parte__fecha_inicio__gte=fi,
+        parte__fecha_fin__lte=ff,
+    ).select_related('parte').order_by('parte__fecha_inicio')
+
+    total_act = sum(a.acciones for a in asignaciones) + sum(pp.parte.total_acciones for pp in partes)
+    total_hd = sum(a.horas_diurnas for a in asignaciones) + sum(pp.horas_trabajadas for pp in partes)
+    total_he = sum(a.horas_extras for a in asignaciones) + sum(pp.horas_extras for pp in partes)
+
+    return render(request, 'inventario/persona_detail.html', {
+        'persona': persona,
+        'asignaciones': asignaciones,
+        'partes': partes,
+        'total_act': total_act,
+        'total_hd': total_hd,
+        'total_he': total_he,
+        'inicio': fi,
+        'fin': ff,
+    })
 
 
 def orden_list(request):
