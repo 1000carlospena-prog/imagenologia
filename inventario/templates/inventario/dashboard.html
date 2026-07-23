@@ -25,40 +25,6 @@
     </div>
 </div>
 
-<div class="row g-3 mb-3">
-    <div class="col-md-3">
-        <div class="card border-primary shadow-sm">
-            <div class="card-body text-center">
-                <h6 class="text-primary mb-1"><i class="bi bi-people"></i> Personas activas</h6>
-                <p class="fs-3 fw-bold mb-0">{{ personas|length }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-success shadow-sm">
-            <div class="card-body text-center">
-                <h6 class="text-success mb-1"><i class="bi bi-check2-square"></i> Total acciones</h6>
-                <p class="fs-3 fw-bold mb-0">{{ total_acciones_global }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-warning shadow-sm">
-            <div class="card-body text-center">
-                <h6 class="text-warning mb-1"><i class="bi bi-sun"></i> Total horas</h6>
-                <p class="fs-3 fw-bold mb-0">{{ total_horas_global|floatformat:1 }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-info shadow-sm">
-            <div class="card-body text-center">
-                <h6 class="text-info mb-1"><i class="bi bi-calendar-range"></i> Periodo</h6>
-                <p class="fs-6 fw-bold mb-0">{{ inicio|date:'d/m/Y' }} – {{ fin|date:'d/m/Y' }}</p>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="card shadow-sm">
     <div class="card-body p-0">
@@ -98,16 +64,7 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="table-light fw-bold">
-                    <tr>
-                        <td colspan="4">
-                            <span class="d-block d-sm-inline me-3"><strong>TOTAL</strong></span>
-                            <span class="me-2">Acciones: <strong>{{ total_acciones_global }}</strong></span>
-                            <span class="me-2">Horas: <strong>{{ total_horas_global|floatformat:1 }}</strong></span>
-                            <span>H. Extra: <strong>{{ total_he_global|floatformat:1 }}</strong></span>
-                        </td>
-                    </tr>
-                </tfoot>
+
             </table>
         </div>
     </div>
