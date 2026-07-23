@@ -615,3 +615,13 @@ def historial(request):
     page = request.GET.get('page', 1)
     logs_page = paginator.get_page(page)
     return render(request, 'inventario/historial.html', {'logs': logs_page})
+
+
+def historial_clear(request):
+    if not request.user.is_superuser:
+        return redirect('login')
+    if request.method == 'POST':
+        count = Auditoria.objects.count()
+        Auditoria.objects.all().delete()
+        messages.success(request, f'Historial limpiado ({count} registros eliminados).')
+    return redirect('historial')

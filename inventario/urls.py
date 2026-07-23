@@ -28,4 +28,5 @@ urlpatterns = [
     path('equipos/<int:pk>/eliminar/', views.equipo_delete, name='equipo_delete'),
     path('equipos/duplicados/', views.equipo_duplicados, name='equipo_duplicados'),
     path('historial/', views.historial, name='historial'),
+    path('historial/limpiar/', views.historial_clear, name='historial_clear'),
 ]
