@@ -75,26 +75,57 @@ class Command(BaseCommand):
                 )
         self.stdout.write(f'  USD Marcas: {wb.sheetnames}')
 
+    def _mapear_columnas(self, headers):
+        """Detecta el índice de cada columna según el encabezado."""
+        cols = {}
+        for i, h in enumerate(headers):
+            if h is None:
+                continue
+            h = str(h).strip().lower()
+            if 'municipio' in h:
+                cols['municipio'] = i
+            elif 'unidad de salud' in h:
+                cols['unidad_salud'] = i
+            elif h == 'local':
+                cols['local'] = i
+            elif 'servicio' in h and 'especialidad' not in h:
+                cols['servicio'] = i
+            elif 'especialidad' in h:
+                cols['especialidad'] = i
+            elif h == 'marca':
+                cols['marca'] = i
+            elif h == 'modelo':
+                cols['modelo'] = i
+            elif 'serie' in h:
+                cols['numero_serie'] = i
+            elif 'obs' in h:
+                cols['observaciones'] = i
+            elif 'estado' in h:
+                cols['estado'] = i
+        return cols
+
     def _importar_usd_municipios(self, path):
         wb = load_workbook(path)
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
-            for row in ws.iter_rows(min_row=2, values_only=True):
+            rows = list(ws.iter_rows(values_only=True))
+            if not rows:
+                continue
+            headers = list(rows[0])
+            cols = self._mapear_columnas(headers)
+            for row in rows[1:]:
                 if not row[0]:
                     continue
-                Equipo.objects.create(
-                    municipio=limpiar(row[0]),
-                    tipo='USD',
-                    unidad_salud=limpiar(row[1]),
-                    local=limpiar(row[2]),
-                    servicio=limpiar(row[3]),
-                    marca=limpiar(row[4]),
-                    modelo=limpiar(row[5]),
-                    numero_serie=limpiar(row[6]),
-                    observaciones=limpiar(row[7]),
-                    estado=limpiar(row[8]),
-                    fuente='Estado de los USD x Municipios',
-                )
+                equipo_data = {
+                    'tipo': 'USD',
+                    'fuente': 'Estado de los USD x Municipios',
+                }
+                for campo, idx in cols.items():
+                    if idx < len(row) and row[idx] is not None:
+                        if campo == 'especialidad':
+                            continue
+                        equipo_data[campo] = limpiar(row[idx])
+                Equipo.objects.create(**equipo_data)
         self.stdout.write(f'  USD Municipios: {wb.sheetnames}')
 
     def _importar_plan_mtto(self, path):
