@@ -404,6 +404,12 @@ def generar_orden(request):
 
 def equipo_list(request):
     q = request.GET.get('q', '')
+    f_marca = request.GET.get('marca', '')
+    f_modelo = request.GET.get('modelo', '')
+    f_unidad = request.GET.get('unidad', '')
+    f_municipio = request.GET.get('municipio', '')
+    f_estado = request.GET.get('estado', '')
+
     equipos = Equipo.objects.all()
     if q:
         equipos = equipos.filter(
@@ -411,6 +417,22 @@ def equipo_list(request):
             Q(unidad_salud__icontains=q) | Q(denominacion__icontains=q) |
             Q(modelo__icontains=q) | Q(numero_serie__icontains=q)
         )
+    if f_marca:
+        equipos = equipos.filter(marca=f_marca)
+    if f_modelo:
+        equipos = equipos.filter(modelo=f_modelo)
+    if f_unidad:
+        equipos = equipos.filter(unidad_salud=f_unidad)
+    if f_municipio:
+        equipos = equipos.filter(municipio=f_municipio)
+    if f_estado:
+        equipos = equipos.filter(estado=f_estado)
+
+    marcas = Equipo.objects.values_list('marca', flat=True).exclude(marca='').distinct().order_by('marca')
+    modelos = Equipo.objects.values_list('modelo', flat=True).exclude(modelo='').distinct().order_by('modelo')
+    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+    municipios_list = Equipo.objects.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
+    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
 
     santiago = equipos.filter(municipio__icontains='Santiago').order_by('unidad_salud', 'denominacion')
     otros = equipos.exclude(municipio__icontains='Santiago').filter(municipio__gt='').order_by('municipio', 'unidad_salud')
@@ -423,18 +445,28 @@ def equipo_list(request):
             hospitales[hosp] = []
         hospitales[hosp].append(eq)
 
-    municipios = {}
+    municipios_agrup = {}
     for eq in otros:
         mun = eq.municipio or 'Sin municipio'
-        if mun not in municipios:
-            municipios[mun] = []
-        municipios[mun].append(eq)
+        if mun not in municipios_agrup:
+            municipios_agrup[mun] = []
+        municipios_agrup[mun].append(eq)
 
     context = {
         'hospitales': hospitales,
-        'municipios': municipios,
+        'municipios': municipios_agrup,
         'sin_municipio': sin_municipio,
+        'marcas': marcas,
+        'modelos': modelos,
+        'unidades': unidades,
+        'municipios_list': municipios_list,
+        'estados': estados,
         'q': q,
+        'f_marca': f_marca,
+        'f_modelo': f_modelo,
+        'f_unidad': f_unidad,
+        'f_municipio': f_municipio,
+        'f_estado': f_estado,
         'total': equipos.count(),
     }
     return render(request, 'inventario/equipo_list.html', context)

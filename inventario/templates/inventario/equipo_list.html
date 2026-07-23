@@ -7,16 +7,61 @@
     <span class="badge bg-secondary fs-6">{{ total }} equipos</span>
 </div>
 
-<form method="GET" class="row g-2 mb-3">
-    <div class="col-md-6">
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="text" name="q" class="form-control" placeholder="Buscar por marca, modelo, hospital, municipio..." value="{{ q }}">
-            <button type="submit" class="btn btn-primary">Buscar</button>
-            {% if q %}
-                <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary">Limpiar</a>
-            {% endif %}
-        </div>
+<form method="GET" class="row g-2 mb-3 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Buscar texto</label>
+        <input type="text" name="q" class="form-control" placeholder="Marca, modelo, serie, hospital..." value="{{ q }}">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Marca</label>
+        <select name="marca" class="form-select">
+            <option value="">Todas</option>
+            {% for m in marcas %}
+                <option value="{{ m }}" {% if f_marca == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Modelo</label>
+        <select name="modelo" class="form-select">
+            <option value="">Todos</option>
+            {% for m in modelos %}
+                <option value="{{ m }}" {% if f_modelo == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small text-muted mb-1">Unidad de salud</label>
+        <select name="unidad" class="form-select">
+            <option value="">Todas</option>
+            {% for u in unidades %}
+                <option value="{{ u }}" {% if f_unidad == u %}selected{% endif %}>{{ u }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small text-muted mb-1">Municipio</label>
+        <select name="municipio" class="form-select">
+            <option value="">Todos</option>
+            {% for m in municipios_list %}
+                <option value="{{ m }}" {% if f_municipio == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small text-muted mb-1">Estado</label>
+        <select name="estado" class="form-select">
+            <option value="">Todos</option>
+            {% for e in estados %}
+                <option value="{{ e }}" {% if f_estado == e %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
+        {% if q or f_marca or f_modelo or f_unidad or f_municipio or f_estado %}
+        <a href="{% url 'equipo_list' %}" class="btn btn-outline-secondary flex-fill">Limpiar</a>
+        {% endif %}
     </div>
 </form>
 
