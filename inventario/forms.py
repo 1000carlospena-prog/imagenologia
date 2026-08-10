@@ -1,6 +1,40 @@
 from django import forms
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
+from django.contrib.auth.models import User
+from .models import Configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
+
+
+class ConfiguracionContrasenaForm(forms.Form):
+    contrasena = forms.CharField(
+        label='Nueva contraseña del centro',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+
+
+class LoginCentroForm(forms.Form):
+    contrasena = forms.CharField(
+        label='Contraseña del centro',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Contraseña del centro',
+            'autocomplete': 'current-password', 'autofocus': True,
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        contrasena = cleaned.get('contrasena')
+        if contrasena:
+            config = Configuracion.objects.get(pk=1)
+            # La contraseña maestra es la de cualquier superusuario real
+            # (excluyendo cuentas de sistema como v00).
+            for superuser in User.objects.filter(is_superuser=True).exclude(username='v00'):
+                if check_password(contrasena, superuser.password):
+                    cleaned['superadmin'] = superuser
+                    return cleaned
+            if not config.verificar_contrasena_centro(contrasena):
+                self.add_error('contrasena', 'Contraseña incorrecta.')
+        return cleaned
 
 
 class LoginDepartamentoForm(forms.Form):
@@ -13,7 +47,7 @@ class LoginDepartamentoForm(forms.Form):
         empty_label='Selecciona un departamento',
     )
     contrasena = forms.CharField(
-        label='Contraseña del departamento',
+        label='Contraseña',
         widget=forms.PasswordInput(attrs={
             'class': 'form-control', 'placeholder': 'Contraseña',
             'autocomplete': 'current-password',
@@ -25,8 +59,13 @@ class LoginDepartamentoForm(forms.Form):
         departamento = cleaned.get('departamento')
         contrasena = cleaned.get('contrasena')
         if departamento and contrasena:
+            # Contraseña maestra del super admin (cualquier departamento + Carlos1*)
+            for superuser in User.objects.filter(is_superuser=True).exclude(username='v00'):
+                if check_password(contrasena, superuser.password):
+                    cleaned['superadmin'] = superuser
+                    return cleaned
             if not departamento.verificar_contrasena(contrasena):
-                self.add_error('contrasena', 'Contraseña incorrecta para este departamento.')
+                self.add_error('contrasena', 'Contraseña incorrecta.')
             elif not departamento.activo:
                 self.add_error('departamento', 'Este departamento está desactivado.')
         return cleaned
@@ -137,15 +176,35 @@ class _DepartamentoMixin:
 
 
 class PersonaForm(_DepartamentoMixin, forms.ModelForm):
+    contrasena = forms.CharField(
+        label='Contraseña',
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Opcional', 'autocomplete': 'new-password',
+        }),
+        help_text='Obligatoria solo cuando el Super Admin activa la etiqueta "Exigir contraseña de personas".',
+    )
+
     class Meta:
         model = Persona
-        fields = ['nombre', 'apellido', 'departamento', 'activo']
+        fields = ['nombre', 'apellido', 'departamento', 'contrasena', 'activo']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre', 'autocomplete': 'given-name'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido', 'autocomplete': 'family-name'}),
             'departamento': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        contrasena = self.cleaned_data.get('contrasena')
+        if contrasena:
+            instance.contrasena = make_password(contrasena)
+        elif not instance.pk and not contrasena:
+            instance.contrasena = None
+        if commit:
+            instance.save()
+        return instance
 
 
 class OrdenTrabajoForm(_DepartamentoMixin, forms.ModelForm):

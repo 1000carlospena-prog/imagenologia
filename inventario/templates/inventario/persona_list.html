@@ -38,6 +38,7 @@
                 <thead class="table-primary">
                     <tr>
                         <th>Nombre</th>
+                        {% if mostrar_departamento %}<th>Departamento</th>{% endif %}
                         <th class="text-center">Estado</th>
                         <th class="text-center">Acciones</th>
                         <th class="text-center">H. Trabajadas</th>
@@ -53,6 +54,15 @@
                                 {{ p.apellido }} {{ p.nombre }}
                             </a>
                         </td>
+                        {% if mostrar_departamento %}
+                        <td data-label="Departamento">
+                            {% if p.departamento %}
+                                <span class="badge bg-secondary"><i class="bi bi-building"></i> {{ p.departamento.nombre }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td class="text-center badge-cell" data-label="Estado">
                             {% if p.activo %}
                                 <span class="badge bg-success">Activo</span>

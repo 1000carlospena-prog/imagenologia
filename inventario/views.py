@@ -2,7 +2,7 @@ from datetime import date, datetime
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -10,10 +10,11 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 import calendar
 import uuid
-from .models import Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink
+from .models import Configuracion, get_configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink
 from .forms import (
     PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, LoginDepartamentoForm,
-    QuickPersonaForm, ParteTrabajoForm, EquipoForm, CrearDepartamentoForm,
+    LoginCentroForm, ConfiguracionContrasenaForm, QuickPersonaForm, ParteTrabajoForm,
+    EquipoForm, CrearDepartamentoForm,
     DepartamentoEditarForm, DepartamentoContrasenaForm,
 )
 
@@ -94,11 +95,46 @@ def _get_periodo_activo(request):
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('select_persona')
+    config = get_configuracion()
+
+    # Paso 1: si la etiqueta del centro está activa y aún no se entró como centro,
+    # se exige el login del centro ANTES del login de departamento.
+    if config.exigir_login_centro and not request.session.get('centro_ok'):
+        if request.method == 'POST':
+            modo = request.POST.get('modo_login', 'centro')
+            form_centro = LoginCentroForm(request.POST)
+            if form_centro.is_valid():
+                superadmin = form_centro.cleaned_data.get('superadmin')
+                if superadmin is not None:
+                    auth_login(request, superadmin)
+                    messages.success(request, 'Bienvenido, Super Admin (acceso global).')
+                    return redirect('select_persona')
+                request.session['centro_ok'] = True
+                messages.success(request, 'Bienvenido al centro. Ahora elige tu departamento.')
+                return redirect('login')
+            return render(request, 'inventario/login.html', {
+                'form_centro': form_centro,
+                'modo_centro': True,
+            })
+        return render(request, 'inventario/login.html', {
+            'form_centro': LoginCentroForm(),
+            'modo_centro': True,
+        })
+
+    # Paso 2: login de departamento (o super admin con la contraseña maestra).
     if request.method == 'POST':
-        modo = request.POST.get('modo_login', 'admin')
+        modo = request.POST.get('modo_login', 'departamento')
         if modo == 'departamento':
             form_departamento = LoginDepartamentoForm(request.POST)
             if form_departamento.is_valid():
+                superadmin = form_departamento.cleaned_data.get('superadmin')
+                if superadmin is not None:
+                    # Entró con la contraseña maestra: super admin GLOBAL.
+                    # El departamento elegido solo es el punto de entrada.
+                    auth_login(request, superadmin)
+                    request.session.pop('departamento_pk', None)
+                    messages.success(request, 'Bienvenido, Super Admin (acceso global).')
+                    return redirect('select_persona')
                 depto = form_departamento.cleaned_data['departamento']
                 request.session['departamento_pk'] = depto.pk
                 messages.success(request, f'Sesión iniciada en el departamento {depto.nombre}.')
@@ -108,6 +144,7 @@ def login_view(request):
                 'form_departamento': form_departamento,
                 'form_admin': form_admin,
                 'tab_activa': 'departamento',
+                'config': config,
             })
         form_admin = LoginForm(request, data=request.POST)
         if form_admin.is_valid():
@@ -123,6 +160,7 @@ def login_view(request):
             'form_departamento': form_departamento,
             'form_admin': form_admin,
             'tab_activa': 'admin',
+            'config': config,
         })
     form_departamento = LoginDepartamentoForm()
     form_admin = LoginForm()
@@ -130,20 +168,26 @@ def login_view(request):
         'form_departamento': form_departamento,
         'form_admin': form_admin,
         'tab_activa': 'departamento',
+        'config': config,
     })
 
 
 def logout_view(request):
     auth_logout(request)
-    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id', 'departamento_pk']:
+    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id', 'departamento_pk', 'centro_ok']:
         request.session.pop(key, None)
     messages.info(request, 'Sesión cerrada correctamente.')
     return redirect('login')
 
 
 def crear_departamento(request):
-    if request.user.is_authenticated:
+    es_staff = request.user.is_authenticated and request.user.is_staff
+    if request.user.is_authenticated and not es_staff:
         return redirect('select_persona')
+    # Solo quien pasó por el login del centro (o entró como super admin) puede crear departamentos.
+    if not es_staff and not request.session.get('centro_ok') and not request.user.is_superuser:
+        messages.error(request, 'Debes pasar por el login del centro para poder crear un departamento.')
+        return redirect('login')
     if request.method == 'POST':
         form = CrearDepartamentoForm(request.POST)
         if form.is_valid():
@@ -153,6 +197,9 @@ def crear_departamento(request):
                 restringido=True,
                 activo=True,
             )
+            if es_staff:
+                messages.success(request, f'Departamento "{depto.nombre}" creado.')
+                return redirect('departamentos_admin')
             request.session['departamento_pk'] = depto.pk
             messages.success(request, f'Departamento "{depto.nombre}" creado. Ahora selecciona a la persona.')
             return redirect('select_persona')
@@ -169,11 +216,46 @@ def departamentos_admin(request):
     counts_p = {d['departamento_id']: d['n'] for d in counts_personas}
     counts_e = {d['departamento_id']: d['n'] for d in counts_equipos}
     departamentos = Departamento.objects.annotate(n_links=Count('personas')).all()
+    config = get_configuracion()
     return render(request, 'inventario/departamentos_admin.html', {
         'departamentos': departamentos,
         'counts_personas': counts_p,
         'counts_equipos': counts_e,
+        'config': config,
+        'form_contrasena_centro': ConfiguracionContrasenaForm(),
     })
+
+
+def configuracion_toggle_etiqueta(request, etiqueta):
+    if not request.user.is_staff:
+        return redirect('login')
+    config = get_configuracion()
+    if etiqueta == 'exigir_login_centro':
+        config.exigir_login_centro = not config.exigir_login_centro
+        config.save(update_fields=['exigir_login_centro'])
+        estado = 'activado' if config.exigir_login_centro else 'desactivado'
+        messages.success(request, f'Etiqueta "exigir login del centro" {estado}.')
+    elif etiqueta == 'exigir_contrasena_personas':
+        config.exigir_contrasena_personas = not config.exigir_contrasena_personas
+        config.save(update_fields=['exigir_contrasena_personas'])
+        estado = 'activado' if config.exigir_contrasena_personas else 'desactivado'
+        messages.success(request, f'Etiqueta "exigir contraseña de personas" {estado}.')
+    else:
+        messages.error(request, 'Etiqueta desconocida.')
+    return redirect('departamentos_admin')
+
+
+def configuracion_cambiar_contrasena_centro(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    if request.method == 'POST':
+        form = ConfiguracionContrasenaForm(request.POST)
+        if form.is_valid():
+            config = get_configuracion()
+            config.contrasena_centro = make_password(form.cleaned_data['contrasena'])
+            config.save(update_fields=['contrasena_centro'])
+            messages.success(request, 'Contraseña del centro actualizada.')
+    return redirect('departamentos_admin')
 
 
 def departamento_toggle_restringido(request, pk):
@@ -238,6 +320,7 @@ def departamento_contrasena(request, pk):
 def select_persona(request):
     if not _tiene_sesion(request):
         return redirect('login')
+    config = get_configuracion()
     if request.user.is_superuser:
         return redirect('admin_panel')
     ids = _ids_alcanzables(request)
@@ -252,6 +335,15 @@ def select_persona(request):
             if persona.departamento_id not in ids:
                 messages.error(request, 'No tienes permiso para iniciar sesión como esa persona.')
                 return redirect('select_persona')
+            # Si la etiqueta de contraseñas de personas está activa, se exige la contraseña.
+            if config.exigir_contrasena_personas:
+                contrasena = request.POST.get('contrasena_persona', '')
+                if not persona.contrasena:
+                    messages.error(request, f'La persona {persona} aún no tiene contraseña asignada. Pide al Super Admin que la configure.')
+                    return redirect('select_persona')
+                if not check_password(contrasena, persona.contrasena):
+                    messages.error(request, 'Contraseña incorrecta para esa persona.')
+                    return redirect('select_persona')
             request.session['persona_id'] = persona.pk
             request.session['persona_nombre'] = str(persona)
             messages.success(request, f'Has iniciado sesión como {persona}.')
@@ -274,13 +366,17 @@ def select_persona(request):
                 return render(request, 'inventario/select_persona.html', {
                     'personas': personas,
                     'form': form,
+                    'config': config,
                 })
         return redirect('select_persona')
     personas = Persona.objects.filter(activo=True, departamento_id__in=ids).order_by('apellido', 'nombre')
     form = QuickPersonaForm()
+    mostrar_departamento = len(ids) > 1 or request.user.is_superuser
     return render(request, 'inventario/select_persona.html', {
         'personas': personas,
         'form': form,
+        'mostrar_departamento': mostrar_departamento,
+        'config': config,
     })
 
 
@@ -408,6 +504,7 @@ def persona_list(request):
     return render(request, 'inventario/persona_list.html', {
         'personas': personas_page,
         'query': query,
+        'mostrar_departamento': len(ids) > 1 or request.user.is_superuser,
     })
 
 

@@ -31,6 +31,37 @@ def departamento_por_defecto():
     return departamento.pk
 
 
+class Configuracion(models.Model):
+    """Configuración global del sistema (una sola fila, pk=1)."""
+    contrasena_centro = models.CharField('Contraseña del centro', max_length=255)
+    exigir_login_centro = models.BooleanField(
+        'Exigir login del centro', default=False,
+        help_text='Si está activa, hay que entrar primero como centro (CICEM) antes del login de departamento.',
+    )
+    exigir_contrasena_personas = models.BooleanField(
+        'Exigir contraseña de personas', default=False,
+        help_text='Si está activa, las personas de los departamentos necesitan contraseña para entrar.',
+    )
+
+    class Meta:
+        verbose_name = 'Configuración'
+        verbose_name_plural = 'Configuración'
+
+    def __str__(self):
+        return 'Configuración global'
+
+    def verificar_contrasena_centro(self, contrasena):
+        return check_password(contrasena, self.contrasena_centro)
+
+
+def get_configuracion():
+    config, _ = Configuracion.objects.get_or_create(
+        pk=1,
+        defaults={'contrasena_centro': make_password('12345678')},
+    )
+    return config
+
+
 class Persona(models.Model):
     departamento = models.ForeignKey(
         Departamento, on_delete=models.PROTECT,
@@ -41,6 +72,7 @@ class Persona(models.Model):
     apellido = models.CharField('Apellido', max_length=100)
     email = models.EmailField('Correo electrónico', blank=True, null=True)
     telefono = models.CharField('Teléfono', max_length=20, blank=True, null=True)
+    contrasena = models.CharField('Contraseña', max_length=255, blank=True, null=True)
     activo = models.BooleanField('Activo', default=True)
     fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
     fecha_actualizacion = models.DateTimeField('Última actualización', auto_now=True)
