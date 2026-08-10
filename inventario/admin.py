@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Periodo, VisitaLink
+from .models import Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Periodo, VisitaLink
+
+
+@admin.register(Departamento)
+class DepartamentoAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'activo', 'restringido', 'creado_en']
+    list_filter = ['activo', 'restringido']
+    search_fields = ['nombre']
+    readonly_fields = ['contrasena', 'creado_en']
 
 
 class AsignacionInline(admin.TabularInline):

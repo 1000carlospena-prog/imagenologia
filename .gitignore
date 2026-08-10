@@ -33,3 +33,6 @@ Thumbs.db
 fix_municipio.py
 
 
+
+# Database backups
+backup_render/

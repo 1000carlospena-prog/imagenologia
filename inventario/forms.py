@@ -1,23 +1,157 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
+from .models import Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
 
 
-class PersonaForm(forms.ModelForm):
+class LoginDepartamentoForm(forms.Form):
+    departamento = forms.ModelChoiceField(
+        label='Departamento',
+        queryset=Departamento.objects.filter(activo=True).order_by('nombre'),
+        widget=forms.Select(attrs={
+            'class': 'form-select', 'autocomplete': 'off',
+        }),
+        empty_label='Selecciona un departamento',
+    )
+    contrasena = forms.CharField(
+        label='Contraseña del departamento',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Contraseña',
+            'autocomplete': 'current-password',
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        departamento = cleaned.get('departamento')
+        contrasena = cleaned.get('contrasena')
+        if departamento and contrasena:
+            if not departamento.verificar_contrasena(contrasena):
+                self.add_error('contrasena', 'Contraseña incorrecta para este departamento.')
+            elif not departamento.activo:
+                self.add_error('departamento', 'Este departamento está desactivado.')
+        return cleaned
+
+
+class CrearDepartamentoForm(forms.Form):
+    nombre = forms.CharField(
+        label='Nombre del departamento',
+        max_length=120,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 'placeholder': 'Ej: Cardiología', 'autocomplete': 'off',
+        }),
+    )
+    contrasena = forms.CharField(
+        label='Contraseña',
+        min_length=4,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Mínimo 4 caracteres',
+            'autocomplete': 'new-password',
+        }),
+    )
+    confirmacion = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Repite la contraseña',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre'].strip()
+        if Departamento.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError('Ya existe un departamento con ese nombre.')
+        return nombre
+
+    def clean(self):
+        cleaned = super().clean()
+        contrasena = cleaned.get('contrasena')
+        confirmacion = cleaned.get('confirmacion')
+        if contrasena and confirmacion and contrasena != confirmacion:
+            self.add_error('confirmacion', 'Las contraseñas no coinciden.')
+        return cleaned
+
+
+class DepartamentoEditarForm(forms.ModelForm):
+    class Meta:
+        model = Departamento
+        fields = ['nombre']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control', 'autocomplete': 'off',
+            }),
+        }
+
+
+class DepartamentoContrasenaForm(forms.Form):
+    contrasena = forms.CharField(
+        label='Nueva contraseña',
+        min_length=4,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Mínimo 4 caracteres',
+            'autocomplete': 'new-password',
+        }),
+    )
+    confirmacion = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Repite la contraseña',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        contrasena = cleaned.get('contrasena')
+        confirmacion = cleaned.get('confirmacion')
+        if contrasena and confirmacion and contrasena != confirmacion:
+            self.add_error('confirmacion', 'Las contraseñas no coinciden.')
+        return cleaned
+
+
+class _DepartamentoMixin:
+    def __init__(self, *args, **kwargs):
+        self.departamento_actual = kwargs.pop('departamento', None)
+        self.departamentos_qs = kwargs.pop('departamentos', None)
+        super().__init__(*args, **kwargs)
+        self._configurar_departamento()
+
+    def _es_global(self):
+        return self.departamento_actual is None or not self.departamento_actual.restringido
+
+    def _configurar_departamento(self):
+        field = self.fields['departamento']
+        if self._es_global():
+            field.queryset = self.departamentos_qs or Departamento.objects.all()
+        else:
+            field.queryset = Departamento.objects.filter(pk=self.departamento_actual.pk)
+            field.initial = self.departamento_actual
+            field.disabled = True
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not self._es_global():
+            instance.departamento = self.departamento_actual
+        if commit:
+            instance.save()
+        return instance
+
+
+class PersonaForm(_DepartamentoMixin, forms.ModelForm):
     class Meta:
         model = Persona
-        fields = ['nombre', 'apellido', 'activo']
+        fields = ['nombre', 'apellido', 'departamento', 'activo']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre', 'autocomplete': 'given-name'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido', 'autocomplete': 'family-name'}),
+            'departamento': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 
-class OrdenTrabajoForm(forms.ModelForm):
+class OrdenTrabajoForm(_DepartamentoMixin, forms.ModelForm):
     class Meta:
         model = OrdenTrabajo
-        fields = ['numero_orden', 'descripcion', 'fecha', 'completada']
+        fields = ['numero_orden', 'descripcion', 'fecha', 'completada', 'departamento']
         widgets = {
             'numero_orden': forms.TextInput(attrs={
                 'class': 'form-control', 'placeholder': 'Ej: 2024-001', 'autocomplete': 'off'
@@ -30,6 +164,7 @@ class OrdenTrabajoForm(forms.ModelForm):
                 attrs={'class': 'form-control', 'type': 'date', 'autocomplete': 'off'}
             ),
             'completada': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'departamento': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
         }
 
 
@@ -46,8 +181,9 @@ class AsignacionForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        personas_qs = kwargs.pop('personas_qs', None)
         super().__init__(*args, **kwargs)
-        self.fields['persona'].queryset = Persona.objects.filter(activo=True)
+        self.fields['persona'].queryset = personas_qs or Persona.objects.filter(activo=True)
         self.fields['persona'].label_from_instance = lambda obj: f'{obj.nombre} {obj.apellido}'
 
 
@@ -74,7 +210,7 @@ class QuickPersonaForm(forms.ModelForm):
         labels = {'nombre': 'Nombre'}
 
 
-class ParteTrabajoForm(forms.ModelForm):
+class ParteTrabajoForm(_DepartamentoMixin, forms.ModelForm):
     personas = forms.ModelMultipleChoiceField(
         queryset=Persona.objects.filter(activo=True),
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
@@ -95,7 +231,7 @@ class ParteTrabajoForm(forms.ModelForm):
 
     class Meta:
         model = ParteTrabajo
-        fields = ['acciones', 'cantidad_equipos', 'fecha_inicio', 'fecha_fin']
+        fields = ['acciones', 'cantidad_equipos', 'fecha_inicio', 'fecha_fin', 'departamento']
         widgets = {
             'acciones': forms.NumberInput(attrs={
                 'class': 'form-control', 'min': 1, 'max': 10,
@@ -113,13 +249,17 @@ class ParteTrabajoForm(forms.ModelForm):
                 format='%Y-%m-%d',
                 attrs={'class': 'form-control', 'type': 'date', 'id': 'id_fecha_fin'}
             ),
+            'departamento': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
         }
 
     def __init__(self, *args, **kwargs):
+        personas_qs = kwargs.pop('personas_qs', None)
         self.persona_inicial = kwargs.pop('persona_inicial', None)
         self.fecha_min = kwargs.pop('fecha_min', None)
         self.fecha_max = kwargs.pop('fecha_max', None)
         super().__init__(*args, **kwargs)
+        if personas_qs is not None:
+            self.fields['personas'].queryset = personas_qs
         if self.persona_inicial:
             self.fields['personas'].initial = [self.persona_inicial]
         self.fields['personas'].label_from_instance = lambda obj: f'{obj.apellido} {obj.nombre}'
@@ -149,13 +289,13 @@ class ParteTrabajoForm(forms.ModelForm):
         return cleaned
 
 
-class EquipoForm(forms.ModelForm):
+class EquipoForm(_DepartamentoMixin, forms.ModelForm):
     class Meta:
         model = Equipo
         fields = ['municipio', 'unidad_salud', 'tipo', 'denominacion', 'servicio',
                   'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones',
                   'frecuencia', 'ubicacion_temporal_municipio', 'ubicacion_temporal_unidad',
-                  'nota_interna']
+                  'nota_interna', 'departamento']
         widgets = {
             'municipio': forms.TextInput(attrs={'class': 'form-control', 'list': 'municipio-sugerencias', 'autocomplete': 'off'}),
             'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-sugerencias', 'autocomplete': 'off'}),
@@ -172,8 +312,5 @@ class EquipoForm(forms.ModelForm):
             'ubicacion_temporal_municipio': forms.TextInput(attrs={'class': 'form-control', 'list': 'municipio-temporal-sugerencias', 'autocomplete': 'off'}),
             'ubicacion_temporal_unidad': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-temporal-sugerencias', 'autocomplete': 'off'}),
             'nota_interna': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
+            'departamento': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
         }
-
-
-
-

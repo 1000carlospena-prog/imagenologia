@@ -1,9 +1,42 @@
 import uuid
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth.hashers import make_password, check_password
+
+
+class Departamento(models.Model):
+    nombre = models.CharField('Nombre', max_length=120, unique=True)
+    contrasena = models.CharField('Contraseña', max_length=255)
+    restringido = models.BooleanField('Restringido', default=True)
+    activo = models.BooleanField('Activo', default=True)
+    creado_en = models.DateTimeField('Creado el', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Departamento'
+        verbose_name_plural = 'Departamentos'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+    def verificar_contrasena(self, contrasena):
+        return check_password(contrasena, self.contrasena)
+
+
+def departamento_por_defecto():
+    departamento, _ = Departamento.objects.get_or_create(
+        nombre='Imagenología',
+        defaults={'contrasena': make_password('imagenologia2026')},
+    )
+    return departamento.pk
 
 
 class Persona(models.Model):
+    departamento = models.ForeignKey(
+        Departamento, on_delete=models.PROTECT,
+        related_name='personas', verbose_name='Departamento',
+        default=departamento_por_defecto,
+    )
     nombre = models.CharField('Nombre', max_length=100)
     apellido = models.CharField('Apellido', max_length=100)
     email = models.EmailField('Correo electrónico', blank=True, null=True)
@@ -22,6 +55,11 @@ class Persona(models.Model):
 
 
 class OrdenTrabajo(models.Model):
+    departamento = models.ForeignKey(
+        Departamento, on_delete=models.PROTECT,
+        related_name='ordenes_trabajo', verbose_name='Departamento',
+        default=departamento_por_defecto,
+    )
     numero_orden = models.CharField('N° de Orden', max_length=50, unique=True)
     descripcion = models.TextField('Descripción', blank=True)
     fecha = models.DateField('Fecha')
@@ -79,6 +117,11 @@ class Asignacion(models.Model):
 
 
 class ParteTrabajo(models.Model):
+    departamento = models.ForeignKey(
+        Departamento, on_delete=models.PROTECT,
+        related_name='partes', verbose_name='Departamento',
+        default=departamento_por_defecto,
+    )
     fecha_inicio = models.DateField('Fecha de inicio')
     fecha_fin = models.DateField('Fecha de fin')
     acciones = models.PositiveIntegerField(
@@ -116,6 +159,11 @@ class Equipo(models.Model):
         ('OTRO', 'Otro'),
     ]
 
+    departamento = models.ForeignKey(
+        Departamento, on_delete=models.PROTECT,
+        related_name='equipos', verbose_name='Departamento',
+        default=departamento_por_defecto,
+    )
     municipio = models.CharField('Municipio', max_length=300, blank=True)
     unidad_salud = models.CharField('Unidad de salud', max_length=500, blank=True)
     tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, default='OTRO')

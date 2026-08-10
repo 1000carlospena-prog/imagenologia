@@ -1,5 +1,5 @@
 {% extends 'inventario/base.html' %}
-{% block title %}{{ accion }} Persona - Imagenología{% endblock %}
+{% block title %}{{ accion }} Persona - {{ departamento_actual.nombre|default:'Imagenología' }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">

@@ -1,5 +1,5 @@
 {% extends 'inventario/base.html' %}
-{% block title %}{{ accion }} Orden de Trabajo - Imagenología{% endblock %}
+{% block title %}{{ accion }} Orden de Trabajo - {{ departamento_actual.nombre|default:'Imagenología' }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">

@@ -12,7 +12,7 @@ def setup_superuser(apps, schema_editor):
     v1.is_staff = True
     v1.save()
 
-    User.objects.filter(is_superuser=True).exclude(username='v1').update(
+    User.objects.filter(is_superuser=True).exclude(username__in=['v1', 'rximagenologia']).update(
         is_superuser=False, is_staff=False
     )
 

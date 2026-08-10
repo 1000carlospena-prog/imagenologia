@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar sesión - Imagenología</title>
+    <title>Iniciar sesión</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -17,43 +17,115 @@
             <div class="col-md-5 col-lg-4">
                 <div class="text-center mb-4">
                     <i class="bi bi-clipboard-data fs-1 text-primary"></i>
-                    <h2 class="mt-2 fw-bold">Imagenología</h2>
-                    <p class="text-muted">Sistema de partes de trabajo</p>
+                    <h2 class="mt-2 fw-bold">Sistema de Inventario</h2>
+                    <p class="text-muted">Partes de trabajo por departamento</p>
                 </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show py-2 small" role="alert">
+                            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% elif message.tags == 'error' %}bi-exclamation-triangle{% else %}bi-info-circle{% endif %}"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
                 <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <ul class="nav nav-tabs card-header-tabs justify-content-center" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if tab_activa != 'admin' %}active{% endif %}" id="tab-departamento" data-bs-toggle="tab" data-bs-target="#pane-departamento" type="button" role="tab" aria-controls="pane-departamento" aria-selected="true">
+                                    <i class="bi bi-building"></i> Departamento
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if tab_activa == 'admin' %}active{% endif %}" id="tab-admin" data-bs-toggle="tab" data-bs-target="#pane-admin" type="button" role="tab" aria-controls="pane-admin" aria-selected="false">
+                                    <i class="bi bi-shield-lock"></i> Super Admin
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                     <div class="card-body p-4">
-                        <h5 class="card-title text-center mb-3">
-                            <i class="bi bi-shield-lock"></i> Iniciar sesión
-                        </h5>
-                        <form method="POST">
-                            {% csrf_token %}
-                            {% if form.errors %}
-                                <div class="alert alert-danger py-2 small">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    Usuario o contraseña incorrectos.
+                        <div class="tab-content">
+                            <div class="tab-pane fade {% if tab_activa != 'admin' %}show active{% endif %}" id="pane-departamento" role="tabpanel" aria-labelledby="tab-departamento">
+                                <form method="POST">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="modo_login" value="departamento">
+                                    {% if form_departamento.non_field_errors %}
+                                        <div class="alert alert-danger py-2 small">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            {{ form_departamento.non_field_errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="mb-3">
+                                        <label for="{{ form_departamento.departamento.id_for_label }}" class="form-label">
+                                            <i class="bi bi-building"></i> Departamento
+                                        </label>
+                                        {{ form_departamento.departamento }}
+                                        {% if form_departamento.departamento.errors %}
+                                            <div class="text-danger small mt-1">{{ form_departamento.departamento.errors|striptags }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="{{ form_departamento.contrasena.id_for_label }}" class="form-label">
+                                            <i class="bi bi-key"></i> Contraseña del departamento
+                                        </label>
+                                        {{ form_departamento.contrasena }}
+                                        {% if form_departamento.contrasena.errors %}
+                                            <div class="text-danger small mt-1">{{ form_departamento.contrasena.errors|striptags }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-box-arrow-in-right"></i> Entrar
+                                    </button>
+                                </form>
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'crear_departamento' %}" class="small text-decoration-none">
+                                        <i class="bi bi-plus-circle"></i> Crear nuevo departamento
+                                    </a>
                                 </div>
-                            {% endif %}
-                            <div class="mb-3">
-                                <label for="{{ form.username.id_for_label }}" class="form-label">
-                                    <i class="bi bi-person"></i> Usuario
-                                </label>
-                                {{ form.username }}
                             </div>
-                            <div class="mb-3">
-                                <label for="{{ form.password.id_for_label }}" class="form-label">
-                                    <i class="bi bi-key"></i> Contraseña
-                                </label>
-                                {{ form.password }}
+                            <div class="tab-pane fade {% if tab_activa == 'admin' %}show active{% endif %}" id="pane-admin" role="tabpanel" aria-labelledby="tab-admin">
+                                <form method="POST">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="modo_login" value="admin">
+                                    {% if form_admin.non_field_errors %}
+                                        <div class="alert alert-danger py-2 small">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            {{ form_admin.non_field_errors|striptags }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="mb-3">
+                                        <label for="{{ form_admin.username.id_for_label }}" class="form-label">
+                                            <i class="bi bi-person"></i> Usuario
+                                        </label>
+                                        {{ form_admin.username }}
+                                        {% if form_admin.username.errors %}
+                                            <div class="text-danger small mt-1">{{ form_admin.username.errors|striptags }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="{{ form_admin.password.id_for_label }}" class="form-label">
+                                            <i class="bi bi-key"></i> Contraseña
+                                        </label>
+                                        {{ form_admin.password }}
+                                        {% if form_admin.password.errors %}
+                                            <div class="text-danger small mt-1">{{ form_admin.password.errors|striptags }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <button type="submit" class="btn btn-dark w-100">
+                                        <i class="bi bi-box-arrow-in-right"></i> Entrar
+                                    </button>
+                                </form>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-box-arrow-in-right"></i> Entrar
-                            </button>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'inventario/js/main.js' %}"></script>
 </body>
 </html>

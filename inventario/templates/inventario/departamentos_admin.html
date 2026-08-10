@@ -1,0 +1,84 @@
+{% extends 'inventario/base.html' %}
+{% load inventario_tags %}
+{% block title %}Departamentos - Administración{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-diagram-3"></i> Administración de departamentos</h3>
+    <a href="{% url 'crear_departamento' %}" class="btn btn-success">
+        <i class="bi bi-plus-lg"></i> Nuevo departamento
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Nombre</th>
+                    <th>Activo</th>
+                    <th>Restricción</th>
+                    <th class="text-center">Personas</th>
+                    <th class="text-center">Equipos</th>
+                    <th>Creado el</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in departamentos %}
+                <tr>
+                    <td>
+                        <strong>{{ d.nombre }}</strong>
+                        {% if not d.activo %}<span class="badge bg-danger ms-1">Desactivado</span>{% endif %}
+                        {% if not d.restringido %}<span class="badge bg-info ms-1">Global</span>{% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="{% url 'departamento_toggle_activo' d.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       {% if d.activo %}checked{% endif %}
+                                       onchange="this.form.submit()"
+                                       aria-label="Activar o desactivar {{ d.nombre }}">
+                            </div>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="POST" action="{% url 'departamento_toggle_restringido' d.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       {% if d.restringido %}checked{% endif %}
+                                       onchange="this.form.submit()"
+                                       aria-label="Restricción de {{ d.nombre }}">
+                            </div>
+                        </form>
+                    </td>
+                    <td class="text-center">{{ counts_personas|get_item:d.pk|default:0 }}</td>
+                    <td class="text-center">{{ counts_equipos|get_item:d.pk|default:0 }}</td>
+                    <td>{{ d.creado_en|date:'d/m/Y' }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'departamento_editar' d.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i> Nombre
+                        </a>
+                        <a href="{% url 'departamento_contrasena' d.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-key"></i> Contraseña
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">No hay departamentos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="alert alert-info small mt-3">
+    <i class="bi bi-info-circle"></i>
+    <strong>Restricción activada:</strong> el departamento solo ve y administra sus propios datos.
+    <strong>Restricción desactivada (Global):</strong> ve y administra los datos de todos los departamentos.
+</div>
+{% endblock %}

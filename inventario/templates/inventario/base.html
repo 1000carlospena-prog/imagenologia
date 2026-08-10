@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Imagenología{% endblock %}</title>
+    <title>{% block title %}{{ departamento_actual.nombre|default:'Imagenología' }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..700&display=swap" rel="stylesheet">
@@ -50,9 +50,28 @@
                         <span class="d-none d-sm-inline small ms-1">Equipos</span>
                     </a>
                 </li>
-
+                <li class="nav-item">
+                    <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'estadisticas' in request.path %}active{% endif %}" href="{% url 'equipo_estadisticas' %}" title="Estadísticas de equipos">
+                        <i class="bi bi-bar-chart fs-5 d-block d-sm-inline"></i>
+                        <span class="d-none d-sm-inline small ms-1">Estadísticas</span>
+                    </a>
+                </li>
             </ul>
             <ul class="nav nav-pills fb-extra flex-shrink-0">
+                {% if departamento_actual %}
+                    <li class="nav-item">
+                        <span class="nav-link py-1 px-2 text-warning" title="Departamento activo">
+                            <i class="bi bi-building fs-5"></i>
+                            <span class="d-none d-sm-inline small ms-1">{{ departamento_actual.nombre }}</span>
+                        </span>
+                    </li>
+                {% elif user.is_staff %}
+                    <li class="nav-item">
+                        <span class="nav-link py-1 px-2 text-warning" title="Acceso global">
+                            <i class="bi bi-globe fs-5"></i>
+                        </span>
+                    </li>
+                {% endif %}
                 {% if persona_actual and not user.is_superuser %}
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'select_persona' %}" title="Cambiar usuario" aria-label="Cambiar usuario">
@@ -64,6 +83,13 @@
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'admin_panel' %}" aria-label="Panel de administración">
                             <i class="bi bi-shield-lock fs-5"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                {% if user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-2" href="{% url 'departamentos_admin' %}" aria-label="Administrar departamentos" title="Departamentos">
+                            <i class="bi bi-diagram-3 fs-5"></i>
                         </a>
                     </li>
                 {% endif %}
@@ -113,7 +139,7 @@
 
     <footer class="footer mt-5 py-3 bg-light">
         <div class="container-fluid text-center text-muted small">
-            <i class="bi bi-camera"></i> Sistema de Inventario - Imagenología &copy; {% now "Y" %}
+            <i class="bi bi-camera"></i> Sistema de Inventario - {{ departamento_actual.nombre|default:'Imagenología' }} &copy; {% now "Y" %}
         </div>
     </footer>
 

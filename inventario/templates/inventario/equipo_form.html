@@ -1,5 +1,5 @@
 {% extends 'inventario/base.html' %}
-{% block title %}{% if crear %}Nuevo equipo{% else %}Editar equipo{% endif %} - Imagenología{% endblock %}
+{% block title %}{% if crear %}Nuevo equipo{% else %}Editar equipo{% endif %} - {{ departamento_actual.nombre|default:'Imagenología' }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">

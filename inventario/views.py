@@ -2,6 +2,7 @@ from datetime import date, datetime
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth.hashers import make_password
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -9,8 +10,12 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 import calendar
 import uuid
-from .models import Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink
-from .forms import PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, QuickPersonaForm, ParteTrabajoForm, EquipoForm
+from .models import Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink
+from .forms import (
+    PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, LoginDepartamentoForm,
+    QuickPersonaForm, ParteTrabajoForm, EquipoForm, CrearDepartamentoForm,
+    DepartamentoEditarForm, DepartamentoContrasenaForm,
+)
 
 
 def _auditar(request, accion, modelo, objeto_id, descripcion):
@@ -22,6 +27,50 @@ def _auditar(request, accion, modelo, objeto_id, descripcion):
         usuario=persona, accion=accion, modelo=modelo,
         objeto_id=objeto_id, descripcion=descripcion,
     )
+
+
+def _tiene_sesion(request):
+    return bool(
+        request.user.is_authenticated
+        or request.session.get('is_visitor')
+        or request.session.get('departamento_pk')
+    )
+
+
+def _departamento_sesion(request):
+    pk = request.session.get('departamento_pk')
+    if not pk:
+        return None
+    try:
+        return Departamento.objects.get(pk=pk)
+    except Departamento.DoesNotExist:
+        request.session.pop('departamento_pk', None)
+        return None
+
+
+def alcanzar_departamentos(request):
+    """Departamentos alcanzables según el rol/sesión:
+    staff -> todos; departamento global (restringido=False) -> todos;
+    departamento restringido -> solo el suyo; visitante -> todos."""
+    if request.user.is_staff:
+        return Departamento.objects.all()
+    if request.session.get('is_visitor'):
+        return Departamento.objects.all()
+    depto = _departamento_sesion(request)
+    if depto and not depto.restringido:
+        return Departamento.objects.all()
+    if depto:
+        return Departamento.objects.filter(pk=depto.pk)
+    return Departamento.objects.none()
+
+
+def _ids_alcanzables(request):
+    return set(alcanzar_departamentos(request).values_list('pk', flat=True))
+
+
+def _denegar(request, url_name):
+    messages.error(request, 'No tienes permiso para acceder a este registro.')
+    return redirect(url_name)
 
 
 def _mes_actual_range():
@@ -46,59 +95,188 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('select_persona')
     if request.method == 'POST':
-        form = LoginForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            auth_login(request, user)
-            messages.success(request, f'Bienvenido, {user.username}.')
-            return redirect('select_persona')
-    else:
-        form = LoginForm()
-    return render(request, 'inventario/login.html', {'form': form})
+        modo = request.POST.get('modo_login', 'admin')
+        if modo == 'departamento':
+            form_departamento = LoginDepartamentoForm(request.POST)
+            if form_departamento.is_valid():
+                depto = form_departamento.cleaned_data['departamento']
+                request.session['departamento_pk'] = depto.pk
+                messages.success(request, f'Sesión iniciada en el departamento {depto.nombre}.')
+                return redirect('select_persona')
+            form_admin = LoginForm()
+            return render(request, 'inventario/login.html', {
+                'form_departamento': form_departamento,
+                'form_admin': form_admin,
+                'tab_activa': 'departamento',
+            })
+        form_admin = LoginForm(request, data=request.POST)
+        if form_admin.is_valid():
+            user = form_admin.get_user()
+            if not user.is_staff:
+                form_admin.add_error(None, 'Esta cuenta no tiene permisos administrativos.')
+            else:
+                auth_login(request, user)
+                messages.success(request, f'Bienvenido, {user.username}.')
+                return redirect('select_persona')
+        form_departamento = LoginDepartamentoForm()
+        return render(request, 'inventario/login.html', {
+            'form_departamento': form_departamento,
+            'form_admin': form_admin,
+            'tab_activa': 'admin',
+        })
+    form_departamento = LoginDepartamentoForm()
+    form_admin = LoginForm()
+    return render(request, 'inventario/login.html', {
+        'form_departamento': form_departamento,
+        'form_admin': form_admin,
+        'tab_activa': 'departamento',
+    })
 
 
 def logout_view(request):
     auth_logout(request)
-    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id']:
+    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id', 'departamento_pk']:
         request.session.pop(key, None)
     messages.info(request, 'Sesión cerrada correctamente.')
     return redirect('login')
 
 
+def crear_departamento(request):
+    if request.user.is_authenticated:
+        return redirect('select_persona')
+    if request.method == 'POST':
+        form = CrearDepartamentoForm(request.POST)
+        if form.is_valid():
+            depto = Departamento.objects.create(
+                nombre=form.cleaned_data['nombre'],
+                contrasena=make_password(form.cleaned_data['contrasena']),
+                restringido=True,
+                activo=True,
+            )
+            request.session['departamento_pk'] = depto.pk
+            messages.success(request, f'Departamento "{depto.nombre}" creado. Ahora selecciona a la persona.')
+            return redirect('select_persona')
+    else:
+        form = CrearDepartamentoForm()
+    return render(request, 'inventario/crear_departamento.html', {'form': form})
+
+
+def departamentos_admin(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    counts_personas = Persona.objects.values('departamento_id').annotate(n=Count('id'))
+    counts_equipos = Equipo.objects.values('departamento_id').annotate(n=Count('id'))
+    counts_p = {d['departamento_id']: d['n'] for d in counts_personas}
+    counts_e = {d['departamento_id']: d['n'] for d in counts_equipos}
+    departamentos = Departamento.objects.annotate(n_links=Count('personas')).all()
+    return render(request, 'inventario/departamentos_admin.html', {
+        'departamentos': departamentos,
+        'counts_personas': counts_p,
+        'counts_equipos': counts_e,
+    })
+
+
+def departamento_toggle_restringido(request, pk):
+    if not request.user.is_staff:
+        return redirect('login')
+    departamento = get_object_or_404(Departamento, pk=pk)
+    if request.method == 'POST':
+        departamento.restringido = not departamento.restringido
+        departamento.save(update_fields=['restringido'])
+        etiqueta = 'restricción' if departamento.restringido else 'acceso global'
+        messages.success(request, f'Departamento "{departamento.nombre}" ahora tiene {etiqueta}.')
+    return redirect('departamentos_admin')
+
+
+def departamento_toggle_activo(request, pk):
+    if not request.user.is_staff:
+        return redirect('login')
+    departamento = get_object_or_404(Departamento, pk=pk)
+    if request.method == 'POST':
+        departamento.activo = not departamento.activo
+        departamento.save(update_fields=['activo'])
+        estado = 'activado' if departamento.activo else 'desactivado'
+        messages.success(request, f'Departamento "{departamento.nombre}" {estado}.')
+    return redirect('departamentos_admin')
+
+
+def departamento_editar(request, pk):
+    if not request.user.is_staff:
+        return redirect('login')
+    departamento = get_object_or_404(Departamento, pk=pk)
+    if request.method == 'POST':
+        form = DepartamentoEditarForm(request.POST, instance=departamento)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Departamento actualizado a "{form.cleaned_data["nombre"]}".')
+            return redirect('departamentos_admin')
+    else:
+        form = DepartamentoEditarForm(instance=departamento)
+    return render(request, 'inventario/departamento_form.html', {
+        'form': form, 'departamento': departamento, 'accion': 'Editar nombre',
+    })
+
+
+def departamento_contrasena(request, pk):
+    if not request.user.is_staff:
+        return redirect('login')
+    departamento = get_object_or_404(Departamento, pk=pk)
+    if request.method == 'POST':
+        form = DepartamentoContrasenaForm(request.POST)
+        if form.is_valid():
+            departamento.contrasena = make_password(form.cleaned_data['contrasena'])
+            departamento.save(update_fields=['contrasena'])
+            messages.success(request, f'Contraseña de "{departamento.nombre}" actualizada.')
+            return redirect('departamentos_admin')
+    else:
+        form = DepartamentoContrasenaForm()
+    return render(request, 'inventario/departamento_form.html', {
+        'form': form, 'departamento': departamento, 'accion': 'Cambiar contraseña',
+    })
+
+
 def select_persona(request):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     if request.user.is_superuser:
         return redirect('admin_panel')
+    ids = _ids_alcanzables(request)
     if request.method == 'POST':
         if 'persona_id' in request.POST:
             persona_id = request.POST.get('persona_id')
             try:
                 persona = Persona.objects.get(pk=persona_id, activo=True)
-                request.session['persona_id'] = persona.pk
-                request.session['persona_nombre'] = str(persona)
-                messages.success(request, f'Has iniciado sesión como {persona}.')
-                return redirect('dashboard')
             except Persona.DoesNotExist:
                 messages.error(request, 'Persona no encontrada.')
                 return redirect('select_persona')
+            if persona.departamento_id not in ids:
+                messages.error(request, 'No tienes permiso para iniciar sesión como esa persona.')
+                return redirect('select_persona')
+            request.session['persona_id'] = persona.pk
+            request.session['persona_nombre'] = str(persona)
+            messages.success(request, f'Has iniciado sesión como {persona}.')
+            return redirect('dashboard')
         elif 'nombre' in request.POST:
             form = QuickPersonaForm(request.POST)
             if form.is_valid():
                 persona = form.save(commit=False)
-                persona.apellido = persona.nombre 
+                persona.apellido = persona.nombre
                 persona.activo = True
+                departamento = _departamento_sesion(request) or Departamento.objects.first()
+                if departamento is None:
+                    departamento, _ = Departamento.objects.get_or_create(nombre='Imagenología')
+                persona.departamento = departamento
                 persona.save()
                 messages.success(request, f'Persona "{persona.nombre}" creada. Selecciónala para iniciar.')
                 return redirect('select_persona')
             else:
-                personas = Persona.objects.filter(activo=True).order_by('apellido', 'nombre')
+                personas = Persona.objects.filter(activo=True, departamento_id__in=ids).order_by('apellido', 'nombre')
                 return render(request, 'inventario/select_persona.html', {
                     'personas': personas,
                     'form': form,
                 })
         return redirect('select_persona')
-    personas = Persona.objects.filter(activo=True).order_by('apellido', 'nombre')
+    personas = Persona.objects.filter(activo=True, departamento_id__in=ids).order_by('apellido', 'nombre')
     form = QuickPersonaForm()
     return render(request, 'inventario/select_persona.html', {
         'personas': personas,
@@ -107,9 +285,10 @@ def select_persona(request):
 
 
 def dashboard(request):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     persona_id = request.session.get('persona_id')
+    ids = _ids_alcanzables(request)
 
     pk = request.GET.get('periodo')
     if pk:
@@ -126,7 +305,7 @@ def dashboard(request):
     else:
         inicio, fin = _mes_actual_range()
 
-    personas = Persona.objects.filter(activo=True).annotate(
+    personas = Persona.objects.filter(activo=True, departamento_id__in=ids).annotate(
         total_act=Sum('asignaciones__acciones', filter=Q(
             asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
         )),
@@ -186,6 +365,9 @@ def dashboard(request):
 
 
 def persona_list(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    ids = _ids_alcanzables(request)
     query = request.GET.get('q', '')
     periodo = _get_periodo_activo(request)
     if periodo:
@@ -193,7 +375,7 @@ def persona_list(request):
     else:
         fi, ff = _mes_actual_range()
 
-    personas = Persona.objects.all()
+    personas = Persona.objects.filter(departamento_id__in=ids)
     if query:
         personas = personas.filter(
             Q(nombre__icontains=query) | Q(apellido__icontains=query) |
@@ -230,36 +412,50 @@ def persona_list(request):
 
 
 def persona_create(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
     if request.method == 'POST':
-        form = PersonaForm(request.POST)
+        form = PersonaForm(request.POST, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             form.save()
             messages.success(request, 'Persona registrada correctamente.')
             return redirect('persona_list')
     else:
-        form = PersonaForm()
+        form = PersonaForm(departamento=depto, departamentos=departamentos)
     return render(request, 'inventario/persona_form.html', {'form': form, 'accion': 'Registrar'})
 
 
 def persona_update(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
+    if persona.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'persona_list')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
     desc = str(persona)
     if request.method == 'POST':
-        form = PersonaForm(request.POST, instance=persona)
+        form = PersonaForm(request.POST, instance=persona, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             form.save()
             _auditar(request, 'editar', 'Persona', persona.pk, desc)
             messages.success(request, 'Persona actualizada correctamente.')
             return redirect('persona_list')
     else:
-        form = PersonaForm(instance=persona)
+        form = PersonaForm(instance=persona, departamento=depto, departamentos=departamentos)
     return render(request, 'inventario/persona_form.html', {
         'form': form, 'accion': 'Editar', 'persona': persona
     })
 
 
 def persona_delete(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
+    if persona.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'persona_list')
     desc = str(persona)
     if request.method == 'POST':
         _auditar(request, 'eliminar', 'Persona', persona.pk, desc)
@@ -270,9 +466,11 @@ def persona_delete(request, pk):
 
 
 def persona_detail(request, pk):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
+    if persona.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'persona_list')
     periodo = _get_periodo_activo(request)
 
     if periodo:
@@ -307,13 +505,16 @@ def persona_detail(request, pk):
 
 
 def orden_list(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    ids = _ids_alcanzables(request)
     query = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
     f_persona = request.GET.get('persona', '')
 
     from itertools import chain
 
-    ordenes_qs = OrdenTrabajo.objects.prefetch_related('asignaciones__persona').annotate(
+    ordenes_qs = OrdenTrabajo.objects.filter(departamento_id__in=ids).prefetch_related('asignaciones__persona').annotate(
         total_act=Sum('asignaciones__acciones'),
         total_pers=Count('asignaciones__persona', distinct=True),
     )
@@ -328,7 +529,7 @@ def orden_list(request):
     if f_persona:
         ordenes_qs = ordenes_qs.filter(asignaciones__persona_id=f_persona)
 
-    partes_qs = ParteTrabajo.objects.prefetch_related('personas__persona', 'creado_por')
+    partes_qs = ParteTrabajo.objects.filter(departamento_id__in=ids).prefetch_related('personas__persona', 'creado_por')
     if query:
         partes_qs = partes_qs.filter(
             Q(total_acciones__icontains=query)
@@ -395,7 +596,7 @@ def orden_list(request):
     page = request.GET.get('page', 1)
     items_page = paginator.get_page(page)
 
-    personas = Persona.objects.filter(activo=True).order_by('apellido', 'nombre')
+    personas = Persona.objects.filter(activo=True, departamento_id__in=ids).order_by('apellido', 'nombre')
 
     return render(request, 'inventario/orden_list.html', {
         'items': items_page,
@@ -407,44 +608,61 @@ def orden_list(request):
 
 
 def orden_create(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
     if request.method == 'POST':
-        form = OrdenTrabajoForm(request.POST)
+        form = OrdenTrabajoForm(request.POST, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             orden = form.save()
             messages.success(request, f'Orden de Trabajo OT-{orden.numero_orden} creada correctamente.')
             return redirect('orden_detail', pk=orden.pk)
     else:
-        form = OrdenTrabajoForm()
+        form = OrdenTrabajoForm(departamento=depto, departamentos=departamentos)
     return render(request, 'inventario/orden_form.html', {'form': form, 'accion': 'Crear'})
 
 
 def orden_update(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     orden = get_object_or_404(OrdenTrabajo, pk=pk)
+    if orden.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'orden_list')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
     desc = str(orden)
     if request.method == 'POST':
-        form = OrdenTrabajoForm(request.POST, instance=orden)
+        form = OrdenTrabajoForm(request.POST, instance=orden, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             form.save()
             _auditar(request, 'editar', 'Orden de Trabajo', orden.pk, desc)
             messages.success(request, 'Orden de Trabajo actualizada correctamente.')
             return redirect('orden_detail', pk=orden.pk)
     else:
-        form = OrdenTrabajoForm(instance=orden)
+        form = OrdenTrabajoForm(instance=orden, departamento=depto, departamentos=departamentos)
     return render(request, 'inventario/orden_form.html', {
         'form': form, 'accion': 'Editar', 'orden': orden
     })
 
 
 def orden_detail(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     orden = get_object_or_404(
         OrdenTrabajo.objects.prefetch_related(
             'asignaciones__persona'
         ), pk=pk
     )
+    if orden.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'orden_list')
+    personas_activas = Persona.objects.filter(
+        activo=True, departamento_id__in=_ids_alcanzables(request)
+    ).order_by('apellido', 'nombre')
     asignaciones = orden.asignaciones.select_related('persona').all()
 
     if request.method == 'POST':
-        form = AsignacionForm(request.POST)
+        form = AsignacionForm(request.POST, personas_qs=personas_activas)
         if form.is_valid():
             asignacion = form.save(commit=False)
             asignacion.orden_trabajo = orden
@@ -452,7 +670,7 @@ def orden_detail(request, pk):
             messages.success(request, f'{asignacion.persona} agregado a la orden correctamente.')
             return redirect('orden_detail', pk=orden.pk)
     else:
-        form = AsignacionForm()
+        form = AsignacionForm(personas_qs=personas_activas)
 
     totales = asignaciones.aggregate(
         total_acciones=Sum('acciones'),
@@ -472,7 +690,11 @@ def orden_detail(request, pk):
 
 
 def orden_delete(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     orden = get_object_or_404(OrdenTrabajo, pk=pk)
+    if orden.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'orden_list')
     desc = str(orden)
     if request.method == 'POST':
         _auditar(request, 'eliminar', 'Orden de Trabajo', orden.pk, desc)
@@ -483,7 +705,11 @@ def orden_delete(request, pk):
 
 
 def asignacion_delete(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     asignacion = get_object_or_404(Asignacion, pk=pk)
+    if asignacion.orden_trabajo.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'orden_list')
     orden_pk = asignacion.orden_trabajo.pk
     if request.method == 'POST':
         asignacion.delete()
@@ -493,13 +719,19 @@ def asignacion_delete(request, pk):
 
 
 def generar_orden(request):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     persona_id = request.session.get('persona_id')
     try:
         persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
     except Persona.DoesNotExist:
         persona_actual = None
+
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
+    personas_qs = Persona.objects.filter(
+        activo=True, departamento_id__in=_ids_alcanzables(request)
+    ).order_by('apellido', 'nombre')
 
     hoy = timezone.now().date()
     fecha_max = date(hoy.year, hoy.month, calendar.monthrange(hoy.year, hoy.month)[1])
@@ -514,7 +746,11 @@ def generar_orden(request):
         posted_pks = [int(pk) for pk in request.POST.getlist('personas')]
         if posted_pks:
             personas_iniciales = posted_pks
-        form = ParteTrabajoForm(request.POST, persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
+        form = ParteTrabajoForm(
+            request.POST, departamento=depto, departamentos=departamentos,
+            personas_qs=personas_qs,
+            persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max,
+        )
         if form.is_valid():
             parte = form.save(commit=False)
             parte.creado_por = persona_actual
@@ -541,7 +777,7 @@ def generar_orden(request):
                 parte.delete()
                 for error in errores:
                     messages.error(request, error)
-                personas_qs = Persona.objects.filter(activo=True)
+                personas_qs = Persona.objects.filter(activo=True, departamento_id__in=_ids_alcanzables(request))
                 form.fields['personas'].queryset = personas_qs
                 return render(request, 'inventario/generar_orden.html', {
                     'form': form,
@@ -565,7 +801,10 @@ def generar_orden(request):
             messages.success(request, 'Parte de trabajo creado correctamente.')
             return redirect('orden_list')
     else:
-        form = ParteTrabajoForm(persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
+        form = ParteTrabajoForm(
+            departamento=depto, departamentos=departamentos, personas_qs=personas_qs,
+            persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max,
+        )
 
     return render(request, 'inventario/generar_orden.html', {
         'form': form,
@@ -577,9 +816,16 @@ def generar_orden(request):
 
 
 def parte_update(request, pk):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     parte = get_object_or_404(ParteTrabajo, pk=pk)
+    if parte.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'orden_list')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
+    personas_qs = Persona.objects.filter(
+        activo=True, departamento_id__in=_ids_alcanzables(request)
+    ).order_by('apellido', 'nombre')
     persona_id = request.session.get('persona_id')
     try:
         persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
@@ -594,7 +840,11 @@ def parte_update(request, pk):
         fecha_min = date(hoy.year, hoy.month - 1, 1)
 
     if request.method == 'POST':
-        form = ParteTrabajoForm(request.POST, instance=parte, persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max)
+        form = ParteTrabajoForm(
+            request.POST, instance=parte, departamento=depto, departamentos=departamentos,
+            personas_qs=personas_qs,
+            persona_inicial=persona_actual, fecha_min=fecha_min, fecha_max=fecha_max,
+        )
         if form.is_valid():
             parte = form.save()
             PartePersona.objects.filter(parte=parte).delete()
@@ -614,7 +864,9 @@ def parte_update(request, pk):
             initial_hd = pp.horas_trabajadas
             initial_he = pp.horas_extras
         form = ParteTrabajoForm(
-            instance=parte, persona_inicial=persona_actual,
+            instance=parte, departamento=depto, departamentos=departamentos,
+            personas_qs=personas_qs,
+            persona_inicial=persona_actual,
             initial={
                 'personas': PartePersona.objects.filter(parte=parte).values_list('persona_id', flat=True),
                 'horas_trabajadas': initial_hd,
@@ -628,7 +880,11 @@ def parte_update(request, pk):
 
 
 def parte_delete(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     parte = get_object_or_404(ParteTrabajo, pk=pk)
+    if parte.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'orden_list')
     if request.method == 'POST':
         parte.delete()
         messages.success(request, 'Parte de trabajo eliminado correctamente.')
@@ -637,6 +893,9 @@ def parte_delete(request, pk):
 
 
 def equipo_list(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    ids = _ids_alcanzables(request)
     q = request.GET.get('q', '')
     f_marca = request.GET.get('marca', '')
     f_modelo = request.GET.get('modelo', '')
@@ -644,7 +903,7 @@ def equipo_list(request):
     f_municipio = request.GET.get('municipio', '')
     f_estado = request.GET.get('estado', '')
 
-    equipos = Equipo.objects.all()
+    equipos = Equipo.objects.filter(departamento_id__in=ids)
     if q:
         equipos = equipos.filter(
             Q(marca__icontains=q) | Q(municipio__icontains=q) |
@@ -662,11 +921,12 @@ def equipo_list(request):
     if f_estado:
         equipos = equipos.filter(estado=f_estado)
 
-    marcas = Equipo.objects.values_list('marca', flat=True).exclude(marca='').distinct().order_by('marca')
-    modelos = Equipo.objects.values_list('modelo', flat=True).exclude(modelo='').distinct().order_by('modelo')
-    unidades = Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
-    municipios_list = Equipo.objects.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
-    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
+    scoped = Equipo.objects.filter(departamento_id__in=ids)
+    marcas = scoped.values_list('marca', flat=True).exclude(marca='').distinct().order_by('marca')
+    modelos = scoped.values_list('modelo', flat=True).exclude(modelo='').distinct().order_by('modelo')
+    unidades = scoped.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
+    municipios_list = scoped.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
+    estados = scoped.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
 
     santiago = equipos.filter(municipio__icontains='Santiago').order_by('unidad_salud', 'denominacion')
     otros = equipos.exclude(municipio__icontains='Santiago').filter(municipio__gt='').order_by('municipio', 'unidad_salud')
@@ -707,38 +967,46 @@ def equipo_list(request):
     return render(request, 'inventario/equipo_list.html', context)
 
 
-def _equipo_choices():
+def _equipo_choices(alcanzables):
     import json
     from collections import defaultdict
-    estados = Equipo.objects.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
-    unidades = list(Equipo.objects.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud'))
-    municipios = Equipo.objects.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
+    ids = [d.pk for d in alcanzables]
+    scoped = Equipo.objects.filter(departamento_id__in=ids)
+    estados = scoped.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
+    unidades = list(scoped.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud'))
+    municipios = scoped.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
     mun_unidad = defaultdict(set)
-    for eq in Equipo.objects.exclude(municipio='').exclude(unidad_salud='').values('municipio', 'unidad_salud').distinct():
+    for eq in scoped.exclude(municipio='').exclude(unidad_salud='').values('municipio', 'unidad_salud').distinct():
         mun_unidad[eq['municipio']].add(eq['unidad_salud'])
     mun_unidad_json = {m: sorted(list(u)) for m, u in mun_unidad.items()}
     return estados, unidades, municipios, json.dumps(mun_unidad_json), json.dumps(unidades)
 
 
 def equipo_ubicacion(request, pk):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     equipo = get_object_or_404(Equipo, pk=pk)
+    if equipo.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'equipo_list')
     return render(request, 'inventario/equipo_ubicacion.html', {
         'equipo': equipo,
     })
 
 
 def equipo_create(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
     if request.method == 'POST':
-        form = EquipoForm(request.POST)
+        form = EquipoForm(request.POST, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             form.save()
             messages.success(request, 'Equipo creado.')
             return redirect('equipo_list')
     else:
-        form = EquipoForm()
-    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices()
+        form = EquipoForm(departamento=depto, departamentos=departamentos)
+    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices(departamentos)
     return render(request, 'inventario/equipo_form.html', {
         'form': form, 'crear': True, 'estados': estados,
         'unidades': unidades, 'municipios': municipios,
@@ -748,18 +1016,24 @@ def equipo_create(request):
 
 
 def equipo_update(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     equipo = get_object_or_404(Equipo, pk=pk)
+    if equipo.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'equipo_list')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
     desc = str(equipo)
     if request.method == 'POST':
-        form = EquipoForm(request.POST, instance=equipo)
+        form = EquipoForm(request.POST, instance=equipo, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             form.save()
             _auditar(request, 'editar', 'Equipo', equipo.pk, desc)
             messages.success(request, 'Equipo actualizado.')
             return redirect('equipo_list')
     else:
-        form = EquipoForm(instance=equipo)
-    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices()
+        form = EquipoForm(instance=equipo, departamento=depto, departamentos=departamentos)
+    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices(departamentos)
     return render(request, 'inventario/equipo_form.html', {
         'form': form, 'crear': False, 'equipo': equipo,
         'estados': estados, 'unidades': unidades, 'municipios': municipios,
@@ -769,7 +1043,11 @@ def equipo_update(request, pk):
 
 
 def equipo_delete(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
     equipo = get_object_or_404(Equipo, pk=pk)
+    if equipo.departamento_id not in _ids_alcanzables(request):
+        return _denegar(request, 'equipo_list')
     desc = str(equipo)
     if request.method == 'POST':
         _auditar(request, 'eliminar', 'Equipo', equipo.pk, desc)
@@ -780,12 +1058,15 @@ def equipo_delete(request, pk):
 
 
 def equipo_duplicados(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    ids = _ids_alcanzables(request)
     from django.db.models import Count
 
     if request.method == 'POST':
-        ids = request.POST.getlist('seleccionados')
-        if ids:
-            eliminados = Equipo.objects.filter(pk__in=ids)
+        posted = request.POST.getlist('seleccionados')
+        if posted:
+            eliminados = Equipo.objects.filter(pk__in=posted, departamento_id__in=ids)
             count = eliminados.count()
             desc = ', '.join(str(e) for e in eliminados)
             eliminados.delete()
@@ -795,13 +1076,13 @@ def equipo_duplicados(request):
             messages.warning(request, 'No seleccionaste ningún equipo.')
         return redirect('equipo_duplicados')
 
-    dups = Equipo.objects.values('numero_serie').exclude(numero_serie='').annotate(
+    dups = Equipo.objects.filter(departamento_id__in=ids).values('numero_serie').exclude(numero_serie='').annotate(
         count=Count('id')
     ).filter(count__gt=1).order_by('-count')
 
     grupos = []
     for d in dups:
-        equipos = Equipo.objects.filter(numero_serie=d['numero_serie'])
+        equipos = Equipo.objects.filter(numero_serie=d['numero_serie'], departamento_id__in=ids)
         grupos.append({
             'numero_serie': d['numero_serie'],
             'count': d['count'],
@@ -814,8 +1095,57 @@ def equipo_duplicados(request):
     })
 
 
+def equipo_estadisticas(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    ids = _ids_alcanzables(request)
+    equipos = Equipo.objects.filter(departamento_id__in=ids)
+    total = equipos.count()
+
+    def pct(n):
+        return round(n * 100 / total, 1) if total else 0
+
+    estados = {}
+    for fila in equipos.values('estado').annotate(n=Count('id')).order_by('-n'):
+        raw = fila['estado'] or ''
+        cnt = fila['n']
+        nombre = raw if raw.strip() else 'Sin estado'
+        if nombre.upper() == 'ROTO':
+            nombre = 'Roto'
+        estados[nombre] = estados.get(nombre, 0) + cnt
+    estados = sorted(estados.items(), key=lambda kv: -kv[1])
+
+    municipios = [
+        {'municipio': m['municipio'], 'total': m['n'], 'pct': pct(m['n'])}
+        for m in equipos.exclude(municipio='').values('municipio').annotate(n=Count('id')).order_by('-n')[:10]
+    ]
+
+    tipos = {}
+    labels = dict(Equipo.TIPO_CHOICES)
+    for fila in equipos.values('tipo').annotate(n=Count('id')).order_by('-n'):
+        nombre = labels.get(fila['tipo'], fila['tipo'] or 'Sin tipo')
+        tipos[nombre] = tipos.get(nombre, 0) + fila['n']
+    tipos = sorted(tipos.items(), key=lambda kv: -kv[1])
+
+    colores_estado = {
+        'Funcionando': 'bg-success',
+        'Afectado': 'bg-warning',
+        'Roto': 'bg-danger',
+        'Fuera de servicio': 'bg-secondary',
+        'Pendiente': 'bg-info',
+        'Sin estado': 'bg-dark',
+    }
+
+    return render(request, 'inventario/equipo_estadisticas.html', {
+        'total': total,
+        'estados': [{'nombre': n, 'total': c, 'pct': pct(c), 'color': colores_estado.get(n, 'bg-primary')} for n, c in estados],
+        'municipios': municipios,
+        'tipos': [{'nombre': n, 'total': c, 'pct': pct(c)} for n, c in tipos],
+    })
+
+
 def periodo_list(request):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     periodos = Periodo.objects.all()
     return render(request, 'inventario/periodo_list.html', {
@@ -824,7 +1154,7 @@ def periodo_list(request):
 
 
 def periodo_create(request):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     if request.method == 'POST':
         fi = request.POST.get('fecha_inicio', '')
@@ -847,7 +1177,7 @@ def periodo_create(request):
 
 
 def periodo_delete(request, pk):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
     periodo = get_object_or_404(Periodo, pk=pk)
 
@@ -880,9 +1210,14 @@ def periodo_delete(request, pk):
 
 
 def historial(request):
-    if not request.user.is_authenticated and not request.session.get('is_visitor'):
+    if not _tiene_sesion(request):
         return redirect('login')
-    logs = Auditoria.objects.select_related('usuario').all()
+    if request.user.is_staff:
+        logs = Auditoria.objects.select_related('usuario').all()
+    else:
+        logs = Auditoria.objects.select_related('usuario').filter(
+            usuario__departamento_id__in=_ids_alcanzables(request)
+        )
     paginator = Paginator(logs, 50)
     page = request.GET.get('page', 1)
     logs_page = paginator.get_page(page)
