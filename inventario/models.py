@@ -265,6 +265,13 @@ class EquipoManager(models.Manager):
         return super().get_queryset().filter(eliminado_en__isnull=True)
 
 
+CAMPO_SNAPSHOT = [
+    'departamento', 'municipio', 'unidad_salud', 'tipo', 'denominacion', 'servicio',
+    'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones', 'frecuencia',
+    'fuente', 'ubicacion_temporal_municipio', 'ubicacion_temporal_unidad', 'nota_interna',
+]
+
+
 class Equipo(models.Model):
     TIPO_CHOICES = [
         ('RX', 'Rayos X'),
@@ -301,7 +308,6 @@ class Equipo(models.Model):
 
     objects = EquipoManager()
     all_objects = models.Manager()
-
     class Meta:
         verbose_name = 'Equipo'
         verbose_name_plural = 'Equipos'

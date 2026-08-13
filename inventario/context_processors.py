@@ -1,4 +1,4 @@
-from .models import Departamento, Persona, Periodo
+from .models import Departamento, Persona, Periodo, get_configuracion, SolicitudEquipo, CambioPendiente
 
 
 def persona_actual(request):
@@ -33,3 +33,32 @@ def periodo_activo(request):
     else:
         periodo = periodos.first()
     return {'periodos': periodos, 'periodo_activo': periodo}
+
+
+def configuracion_global(request):
+    """P3-D1: expone la configuración y los contadores de aprobaciones pendientes
+    (alcance de la sesión: centro_territorial_pk o departamento)."""
+    config = get_configuracion()
+    departamento_id = request.session.get('departamento_pk')
+    centro_pk = request.session.get('centro_territorial_pk')
+    solicitudes_pendientes = cambios_pendientes = 0
+    if request.user.is_staff or request.session.get('is_visitor'):
+        solicitudes_pendientes = SolicitudEquipo.objects.filter(estado='pendiente').count()
+        cambios_pendientes = CambioPendiente.objects.filter(estado='pendiente').count()
+    elif departamento_id:
+        if centro_pk:
+            departamentos_ids = Departamento.objects.filter(centro_id=centro_pk).values_list('pk', flat=True)
+            solicitudes_pendientes = SolicitudEquipo.objects.filter(
+                estado='pendiente', departamento_destino_id__in=departamentos_ids).count()
+            cambios_pendientes = CambioPendiente.objects.filter(
+                estado='pendiente', departamento_dueno_id__in=departamentos_ids).count()
+        else:
+            solicitudes_pendientes = SolicitudEquipo.objects.filter(
+                estado='pendiente', departamento_destino_id=departamento_id).count()
+            cambios_pendientes = CambioPendiente.objects.filter(
+                estado='pendiente', departamento_dueno_id=departamento_id).count()
+    return {
+        'configuracion_global': config,
+        'solicitudes_pendientes': solicitudes_pendientes,
+        'cambios_pendientes': cambios_pendientes,
+    }

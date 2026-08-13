@@ -2,7 +2,10 @@ from django import forms
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
-from .models import Configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo, Municipio
+from .models import (
+    Configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo,
+    Municipio, Centro, CAMPO_SNAPSHOT,
+)
 
 
 class ConfiguracionContrasenaForm(forms.Form):
@@ -13,6 +16,13 @@ class ConfiguracionContrasenaForm(forms.Form):
 
 
 class LoginCentroForm(forms.Form):
+    centro = forms.ModelChoiceField(
+        label='Centro',
+        queryset=Centro.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+        empty_label='Centro provincial',
+    )
     contrasena = forms.CharField(
         label='Contraseña del centro',
         widget=forms.PasswordInput(attrs={
@@ -20,6 +30,15 @@ class LoginCentroForm(forms.Form):
             'autocomplete': 'current-password', 'autofocus': True,
         }),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        config = Configuracion.objects.get(pk=1)
+        if config.permitir_login_centros_territoriales:
+            qs = Centro.objects.filter(tipo__in=['provincial', 'territorial'], activo=True)
+        else:
+            qs = Centro.objects.filter(tipo='provincial', activo=True)
+        self.fields['centro'].queryset = qs.order_by('nombre')
 
     def clean(self):
         cleaned = super().clean()
@@ -40,7 +59,7 @@ class LoginCentroForm(forms.Form):
 class LoginDepartamentoForm(forms.Form):
     departamento = forms.ModelChoiceField(
         label='Departamento',
-        queryset=Departamento.objects.filter(activo=True).order_by('nombre'),
+        queryset=Departamento.objects.none(),
         widget=forms.Select(attrs={
             'class': 'form-select', 'autocomplete': 'off',
         }),
@@ -53,6 +72,14 @@ class LoginDepartamentoForm(forms.Form):
             'autocomplete': 'current-password',
         }),
     )
+
+    def __init__(self, *args, **kwargs):
+        centro_pk = kwargs.pop('centro_pk', None)
+        super().__init__(*args, **kwargs)
+        qs = Departamento.objects.filter(activo=True)
+        if centro_pk:
+            qs = qs.filter(centro_id=centro_pk)
+        self.fields['departamento'].queryset = qs.order_by('nombre')
 
     def clean(self):
         cleaned = super().clean()
@@ -351,10 +378,7 @@ class ParteTrabajoForm(_DepartamentoMixin, forms.ModelForm):
 class EquipoForm(_DepartamentoMixin, forms.ModelForm):
     class Meta:
         model = Equipo
-        fields = ['municipio', 'unidad_salud', 'tipo', 'denominacion', 'servicio',
-                  'local', 'marca', 'modelo', 'numero_serie', 'estado', 'observaciones',
-                  'frecuencia', 'ubicacion_temporal_municipio', 'ubicacion_temporal_unidad',
-                  'nota_interna', 'departamento']
+        fields = CAMPO_SNAPSHOT
         widgets = {
             'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-sugerencias', 'autocomplete': 'off'}),
             'tipo': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
@@ -367,6 +391,7 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
             'estado': forms.TextInput(attrs={'class': 'form-control', 'list': 'estado-sugerencias', 'autocomplete': 'off'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
             'frecuencia': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'fuente': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
             'ubicacion_temporal_municipio': forms.TextInput(attrs={'class': 'form-control', 'list': 'municipio-temporal-sugerencias', 'autocomplete': 'off'}),
             'ubicacion_temporal_unidad': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-temporal-sugerencias', 'autocomplete': 'off'}),
             'nota_interna': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
@@ -383,3 +408,79 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
             empty_label='Sin municipio',
             widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
         )
+        # Solo en creación: el destino se elige con 'departamento_destino' y el
+        # campo modelo 'departamento' se deja para el mixin (sesión cuando aplica).
+        if not self.instance.pk:
+            destino_qs = self.departamentos_qs or Departamento.objects.all()
+            destino_inicial = self.departamento_actual
+            self.fields['departamento_destino'] = forms.ModelChoiceField(
+                label='Departamento destino',
+                queryset=destino_qs,
+                initial=destino_inicial,
+                empty_label='Selecciona el departamento destino',
+                widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+            )
+            self.fields.pop('departamento')
+
+
+class SolicitudEquipoForm(forms.Form):
+    """Alta de equipo hacia un departamento destino (P2-D3/D7, D8)."""
+    departamento_destino = forms.ModelChoiceField(
+        label='Departamento destino',
+        queryset=Departamento.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+        empty_label='Selecciona el departamento destino',
+    )
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop('departamento', None)
+        departamentos_qs = kwargs.pop('departamentos', None)
+        centro_pk = kwargs.pop('centro_pk', None)
+        super().__init__(*args, **kwargs)
+        qs = Departamento.objects.filter(activo=True)
+        if centro_pk:
+            qs = qs.filter(centro_id=centro_pk)
+        if departamentos_qs is not None:
+            qs = qs.filter(pk__in=departamentos_qs)
+        self.fields['departamento_destino'].queryset = qs.order_by('nombre')
+        # Campos del equipo propuesto (CAMPO_SNAPSHOT sin 'departamento':
+        # el dueño lo impone al aprobar).
+        for campo in CAMPO_SNAPSHOT:
+            if campo == 'departamento':
+                continue
+            model_field = Equipo._meta.get_field(campo)
+            self.fields[campo] = model_field.formfield()
+
+    def snapshot(self):
+        """Devuelve los datos del equipo propuesto (contrato CAMPO_SNAPSHOT)."""
+        datos = {}
+        for campo, valor in self.cleaned_data.items():
+            if campo == 'departamento_destino':
+                continue
+            if hasattr(valor, 'pk'):
+                datos[campo] = valor.pk
+            else:
+                datos[campo] = valor
+        return datos
+
+
+class CentroForm(forms.ModelForm):
+    class Meta:
+        model = Centro
+        fields = ['nombre', 'tipo', 'centro_padre', 'activo']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'tipo': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+            'centro_padre': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class MunicipioForm(forms.ModelForm):
+    class Meta:
+        model = Municipio
+        fields = ['nombre', 'centro']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+            'centro': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+        }

@@ -50,4 +50,16 @@ urlpatterns = [
     path('visitar/<uuid:uuid_code>/', views.visitar, name='visitar'),
     path('visitar/<uuid:uuid_code>/entrar/', views.visitar_entrar, name='visitar_entrar'),
     path('exit-visitor/', views.exit_visitor, name='exit_visitor'),
+
+    # Jerarquía de centros territoriales (Fase 3)
+    path('aprobaciones/', views.solicitud_list, name='solicitud_list'),
+    path('aprobaciones/solicitar/', views.solicitud_create, name='solicitud_create'),
+    path('aprobaciones/solicitudes/<int:pk>/aprobar/', views.solicitud_aprobar, name='solicitud_aprobar'),
+    path('aprobaciones/solicitudes/<int:pk>/cancelar/', views.solicitud_cancelar, name='solicitud_cancelar'),
+    path('aprobaciones/cambios/<int:pk>/aprobar/', views.cambio_aprobar, name='cambio_aprobar'),
+    path('aprobaciones/cambios/<int:pk>/cancelar/', views.cambio_cancelar, name='cambio_cancelar'),
+    path('centros/', views.centro_list, name='centro_list'),
+    path('centros/nuevo/', views.centro_create, name='centro_create'),
+    path('municipios/', views.municipio_list, name='municipio_list'),
+    path('municipios/nuevo/', views.municipio_create, name='municipio_create'),
 ]

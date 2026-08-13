@@ -49,6 +49,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'inventario.context_processors.persona_actual',
                 'inventario.context_processors.periodo_activo',
+                'inventario.context_processors.configuracion_global',
             ],
         },
     },

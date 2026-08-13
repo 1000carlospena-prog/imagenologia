@@ -10,11 +10,15 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 import calendar
 import uuid
-from .models import Configuracion, get_configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink
+from .models import (
+    Configuracion, get_configuracion, Departamento, Persona, OrdenTrabajo, Asignacion,
+    ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink, Centro, Municipio,
+    SolicitudEquipo, CambioPendiente, CAMPO_SNAPSHOT, centro_provincial_por_defecto,
+)
 from .forms import (
     PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, LoginDepartamentoForm,
     LoginCentroForm, ConfiguracionContrasenaForm, QuickPersonaForm, ParteTrabajoForm,
-    EquipoForm, CrearDepartamentoForm,
+    EquipoForm, CrearDepartamentoForm, SolicitudEquipoForm, CentroForm, MunicipioForm,
     DepartamentoEditarForm, DepartamentoContrasenaForm,
 )
 
@@ -50,18 +54,21 @@ def _departamento_sesion(request):
 
 
 def alcanzar_departamentos(request):
-    """Departamentos alcanzables según el rol/sesión:
-    staff -> todos; departamento global (restringido=False) -> todos;
-    departamento restringido -> solo el suyo; visitante -> todos."""
+    """Departamentos alcanzables según el rol/sesión (P2-D2):
+    staff/visitante -> todos; territorial -> solo su centro (centro_territorial_pk);
+    departamento restringido -> solo el suyo; global -> todos."""
     if request.user.is_staff:
         return Departamento.objects.all()
     if request.session.get('is_visitor'):
         return Departamento.objects.all()
     depto = _departamento_sesion(request)
+    if depto and depto.restringido:
+        return Departamento.objects.filter(pk=depto.pk)
+    centro_territorial_pk = request.session.get('centro_territorial_pk')
+    if centro_territorial_pk:
+        return Departamento.objects.filter(centro_id=centro_territorial_pk)
     if depto and not depto.restringido:
         return Departamento.objects.all()
-    if depto:
-        return Departamento.objects.filter(pk=depto.pk)
     return Departamento.objects.none()
 
 
@@ -92,14 +99,63 @@ def _get_periodo_activo(request):
     return Periodo.objects.first()
 
 
+def _persona_sesion(request):
+    persona_id = request.session.get('persona_id')
+    if not persona_id:
+        return None
+    return Persona.objects.filter(pk=persona_id).first()
+
+
+def _mismo_centro(request, equipo):
+    """P2-D7: la sesión territorial solo opera dentro de su centro; el resto (provincial,
+    staff, visitante) opera en cualquier centro."""
+    centro_pk = request.session.get('centro_territorial_pk')
+    if not centro_pk:
+        return True
+    depto = equipo.departamento
+    return depto is not None and depto.centro_id == centro_pk
+
+
+def _snapshot_equipo(equipo):
+    """Snapshot JSON con los valores PREVIOS de los 17 campos editables (D1)."""
+    snap = {}
+    for campo in CAMPO_SNAPSHOT:
+        valor = getattr(equipo, campo)
+        snap[campo] = valor.pk if hasattr(valor, 'pk') else valor
+    return snap
+
+
+def _restaurar_snapshot(equipo, snapshot):
+    """Restaura los campos editables de un Equipo desde un snapshot (D1)."""
+    for campo in CAMPO_SNAPSHOT:
+        if campo not in snapshot:
+            continue
+        valor = snapshot[campo]
+        if campo == 'municipio':
+            equipo.municipio_id = valor
+        elif campo == 'departamento':
+            equipo.departamento_id = valor
+        else:
+            setattr(equipo, campo, valor)
+    equipo.save(update_fields=CAMPO_SNAPSHOT)
+
+
+def _ordenes_habilitadas(request):
+    """Gating D6: las órdenes solo se ven/crean con la etiqueta activa."""
+    if get_configuracion().mostrar_ordenes_servicio:
+        return True
+    messages.error(request, 'El módulo de órdenes de servicio está desactivado.')
+    return False
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('select_persona')
     config = get_configuracion()
 
-    # Paso 1: si la etiqueta del centro está activa y aún no se entró como centro,
-    # se exige el login del centro ANTES del login de departamento.
-    if config.exigir_login_centro and not request.session.get('centro_ok'):
+    # Paso 1: si la etiqueta del centro está activa (vieja o nueva, C5) y aún no se
+    # entró como centro, se exige el login del centro ANTES del login de departamento.
+    if (config.exigir_login_centro or config.permitir_login_centros_territoriales) and not request.session.get('centro_ok'):
         if request.method == 'POST':
             modo = request.POST.get('modo_login', 'centro')
             form_centro = LoginCentroForm(request.POST)
@@ -109,23 +165,29 @@ def login_view(request):
                     auth_login(request, superadmin)
                     messages.success(request, 'Bienvenido, Super Admin (acceso global).')
                     return redirect('select_persona')
+                centro = form_centro.cleaned_data.get('centro') or centro_provincial_por_defecto()
+                request.session['centro_pk'] = centro.pk
+                if centro.tipo == 'territorial':
+                    request.session['centro_territorial_pk'] = centro.pk
                 request.session['centro_ok'] = True
                 messages.success(request, 'Bienvenido al centro. Ahora elige tu departamento.')
                 return redirect('login')
             return render(request, 'inventario/login.html', {
                 'form_centro': form_centro,
                 'modo_centro': True,
+                'config': config,
             })
         return render(request, 'inventario/login.html', {
             'form_centro': LoginCentroForm(),
             'modo_centro': True,
+            'config': config,
         })
 
     # Paso 2: login de departamento (o super admin con la contraseña maestra).
     if request.method == 'POST':
         modo = request.POST.get('modo_login', 'departamento')
         if modo == 'departamento':
-            form_departamento = LoginDepartamentoForm(request.POST)
+            form_departamento = LoginDepartamentoForm(request.POST, centro_pk=request.session.get('centro_pk'))
             if form_departamento.is_valid():
                 superadmin = form_departamento.cleaned_data.get('superadmin')
                 if superadmin is not None:
@@ -162,7 +224,7 @@ def login_view(request):
             'tab_activa': 'admin',
             'config': config,
         })
-    form_departamento = LoginDepartamentoForm()
+    form_departamento = LoginDepartamentoForm(centro_pk=request.session.get('centro_pk'))
     form_admin = LoginForm()
     return render(request, 'inventario/login.html', {
         'form_departamento': form_departamento,
@@ -174,7 +236,7 @@ def login_view(request):
 
 def logout_view(request):
     auth_logout(request)
-    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id', 'departamento_pk', 'centro_ok']:
+    for key in ['persona_id', 'persona_nombre', 'is_visitor', 'visitor_link_id', 'departamento_pk', 'centro_ok', 'centro_pk', 'centro_territorial_pk']:
         request.session.pop(key, None)
     messages.info(request, 'Sesión cerrada correctamente.')
     return redirect('login')
@@ -240,6 +302,21 @@ def configuracion_toggle_etiqueta(request, etiqueta):
         config.save(update_fields=['exigir_contrasena_personas'])
         estado = 'activado' if config.exigir_contrasena_personas else 'desactivado'
         messages.success(request, f'Etiqueta "exigir contraseña de personas" {estado}.')
+    elif etiqueta == 'permitir_login_centros_territoriales':
+        config.permitir_login_centros_territoriales = not config.permitir_login_centros_territoriales
+        config.save(update_fields=['permitir_login_centros_territoriales'])
+        estado = 'activado' if config.permitir_login_centros_territoriales else 'desactivado'
+        messages.success(request, f'Etiqueta "permitir login de centros territoriales" {estado}.')
+    elif etiqueta == 'mostrar_aprobaciones':
+        config.mostrar_aprobaciones = not config.mostrar_aprobaciones
+        config.save(update_fields=['mostrar_aprobaciones'])
+        estado = 'activado' if config.mostrar_aprobaciones else 'desactivado'
+        messages.success(request, f'Etiqueta "mostrar aprobaciones" {estado}.')
+    elif etiqueta == 'mostrar_ordenes_servicio':
+        config.mostrar_ordenes_servicio = not config.mostrar_ordenes_servicio
+        config.save(update_fields=['mostrar_ordenes_servicio'])
+        estado = 'activado' if config.mostrar_ordenes_servicio else 'desactivado'
+        messages.success(request, f'Etiqueta "mostrar órdenes de servicio" {estado}.')
     else:
         messages.error(request, 'Etiqueta desconocida.')
     return redirect('departamentos_admin')
@@ -604,6 +681,8 @@ def persona_detail(request, pk):
 def orden_list(request):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not _ordenes_habilitadas(request):
+        return redirect('dashboard')
     ids = _ids_alcanzables(request)
     query = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
@@ -707,6 +786,8 @@ def orden_list(request):
 def orden_create(request):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not _ordenes_habilitadas(request):
+        return redirect('dashboard')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
     if request.method == 'POST':
@@ -723,6 +804,8 @@ def orden_create(request):
 def orden_update(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not _ordenes_habilitadas(request):
+        return redirect('dashboard')
     orden = get_object_or_404(OrdenTrabajo, pk=pk)
     if orden.departamento_id not in _ids_alcanzables(request):
         return _denegar(request, 'orden_list')
@@ -746,6 +829,8 @@ def orden_update(request, pk):
 def orden_detail(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not _ordenes_habilitadas(request):
+        return redirect('dashboard')
     orden = get_object_or_404(
         OrdenTrabajo.objects.prefetch_related(
             'asignaciones__persona'
@@ -789,6 +874,8 @@ def orden_detail(request, pk):
 def orden_delete(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not _ordenes_habilitadas(request):
+        return redirect('dashboard')
     orden = get_object_or_404(OrdenTrabajo, pk=pk)
     if orden.departamento_id not in _ids_alcanzables(request):
         return _denegar(request, 'orden_list')
@@ -818,6 +905,8 @@ def asignacion_delete(request, pk):
 def generar_orden(request):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not _ordenes_habilitadas(request):
+        return redirect('dashboard')
     persona_id = request.session.get('persona_id')
     try:
         persona_actual = Persona.objects.get(pk=persona_id) if persona_id else None
@@ -1098,8 +1187,29 @@ def equipo_create(request):
     if request.method == 'POST':
         form = EquipoForm(request.POST, departamento=depto, departamentos=departamentos)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Equipo creado.')
+            destino = form.cleaned_data.get('departamento_destino')
+            if destino is None or (depto and destino.pk == depto.pk):
+                # Destino = departamento de la sesión: alta directa (P2-D3, UX intacta).
+                equipo = form.save(commit=False)
+                equipo.departamento = depto or destino
+                equipo.save()
+                _auditar(request, 'editar', 'Equipo', equipo.pk, f'Creó {equipo}')
+                messages.success(request, 'Equipo creado.')
+                return redirect('equipo_list')
+            # Destino ajeno → SolicitudEquipo pendiente (P2-D3/D7: el dueño aprueba, D8).
+            persona = _persona_sesion(request)
+            if persona is None:
+                messages.error(request, 'Debes iniciar sesión como persona para solicitar un equipo a otro departamento.')
+                return redirect('equipo_list')
+            datos_snap = {}
+            for campo, valor in form.cleaned_data.items():
+                if campo == 'departamento_destino':
+                    continue
+                datos_snap[campo] = valor.pk if hasattr(valor, 'pk') else valor
+            SolicitudEquipo.objects.create(
+                datos_equipo=datos_snap, departamento_destino=destino, creado_por=persona,
+            )
+            messages.success(request, f'Solicitud enviada a {destino}. El departamento destino debe aprobarla.')
             return redirect('equipo_list')
     else:
         form = EquipoForm(departamento=depto, departamentos=departamentos)
@@ -1118,15 +1228,33 @@ def equipo_update(request, pk):
     equipo = get_object_or_404(Equipo, pk=pk)
     if equipo.departamento_id not in _ids_alcanzables(request):
         return _denegar(request, 'equipo_list')
+    if not _mismo_centro(request, equipo):
+        return _denegar(request, 'equipo_list')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
+    es_propio = depto is not None and equipo.departamento_id == depto.pk
     desc = str(equipo)
     if request.method == 'POST':
         form = EquipoForm(request.POST, instance=equipo, departamento=depto, departamentos=departamentos)
         if form.is_valid():
+            if es_propio:
+                form.save()
+                _auditar(request, 'editar', 'Equipo', equipo.pk, desc)
+                messages.success(request, 'Equipo actualizado.')
+                return redirect('equipo_list')
+            # Equipo ajeno: se aplica al instante y queda pendiente de aprobación (D1).
+            persona = _persona_sesion(request)
+            if persona is None:
+                messages.error(request, 'Debes iniciar sesión como persona para editar un equipo de otro departamento.')
+                return redirect('equipo_list')
+            snapshot = _snapshot_equipo(equipo)
             form.save()
+            CambioPendiente.objects.create(
+                equipo=equipo, tipo='edicion', snapshot=snapshot,
+                solicitado_por=persona, departamento_dueno=equipo.departamento,
+            )
             _auditar(request, 'editar', 'Equipo', equipo.pk, desc)
-            messages.success(request, 'Equipo actualizado.')
+            messages.success(request, 'Cambio aplicado. El departamento dueño debe aprobarlo.')
             return redirect('equipo_list')
     else:
         form = EquipoForm(instance=equipo, departamento=depto, departamentos=departamentos)
@@ -1145,11 +1273,31 @@ def equipo_delete(request, pk):
     equipo = get_object_or_404(Equipo, pk=pk)
     if equipo.departamento_id not in _ids_alcanzables(request):
         return _denegar(request, 'equipo_list')
+    if not _mismo_centro(request, equipo):
+        return _denegar(request, 'equipo_list')
+    depto = _departamento_sesion(request)
+    es_propio = depto is not None and equipo.departamento_id == depto.pk
     desc = str(equipo)
     if request.method == 'POST':
+        if es_propio:
+            # Hard-delete directo sin CambioPendiente (el dueño ya es aprobador, D8).
+            _auditar(request, 'eliminar', 'Equipo', equipo.pk, desc)
+            Equipo.all_objects.get(pk=equipo.pk).delete()
+            messages.success(request, 'Equipo eliminado.')
+            return redirect('equipo_list')
+        # Equipo ajeno: soft-delete + CambioPendiente (D1/D4: revertir = eliminado_en=None).
+        persona = _persona_sesion(request)
+        if persona is None:
+            messages.error(request, 'Debes iniciar sesión como persona para solicitar la eliminación de un equipo ajeno.')
+            return redirect('equipo_list')
+        equipo.eliminado_en = timezone.now()
+        equipo.save(update_fields=['eliminado_en'])
+        CambioPendiente.objects.create(
+            equipo=equipo, tipo='eliminacion', snapshot={},
+            solicitado_por=persona, departamento_dueno=equipo.departamento,
+        )
         _auditar(request, 'eliminar', 'Equipo', equipo.pk, desc)
-        equipo.delete()
-        messages.success(request, 'Equipo eliminado.')
+        messages.success(request, 'Eliminación aplicada. El departamento dueño debe aprobarla.')
         return redirect('equipo_list')
     return render(request, 'inventario/equipo_confirm_delete.html', {'equipo': equipo})
 
@@ -1395,3 +1543,216 @@ def exit_visitor(request):
         request.session.pop(key, None)
     messages.info(request, 'Has salido del modo visita.')
     return redirect('login')
+
+
+# ---------------------------------------------------------------------------
+# Jerarquía de centros territoriales (Fase 3): solicitudes, cambios y centros
+# ---------------------------------------------------------------------------
+
+def _solicitudes_pendientes_qs(request):
+    """Solicitudes cuyo departamento_destino es alcanzable por la sesión actual."""
+    depto = _departamento_sesion(request)
+    qs = SolicitudEquipo.objects.filter(estado='pendiente')
+    if depto is not None:
+        qs = qs.filter(departamento_destino_id__in=_ids_alcanzables(request))
+    return qs.order_by('-fecha_creacion')
+
+
+def _cambios_pendientes_qs(request):
+    """Cambios pendientes de equipos cuyo departamento dueño es alcanzable."""
+    depto = _departamento_sesion(request)
+    qs = CambioPendiente.objects.filter(estado='pendiente')
+    if depto is not None:
+        qs = qs.filter(departamento_dueno_id__in=_ids_alcanzables(request))
+    return qs.order_by('-fecha_creacion')
+
+
+def solicitud_list(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    depto = _departamento_sesion(request)
+    context = {'solicitudes': _solicitudes_pendientes_qs(request)}
+    if depto is not None:
+        context['cambios'] = _cambios_pendientes_qs(request)
+    return render(request, 'inventario/solicitud_list.html', context)
+
+
+def solicitud_create(request):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    depto = _departamento_sesion(request)
+    departamentos = alcanzar_departamentos(request)
+    if request.method == 'POST':
+        form = SolicitudEquipoForm(request.POST, departamento=depto, departamentos=departamentos)
+        if form.is_valid():
+            destino = form.cleaned_data['departamento_destino']
+            persona = _persona_sesion(request)
+            if persona is None:
+                messages.error(request, 'Debes iniciar sesión como persona para enviar una solicitud.')
+                return redirect('equipo_list')
+            SolicitudEquipo.objects.create(
+                datos_equipo=form.snapshot(),
+                departamento_destino=destino,
+                creado_por=persona,
+            )
+            _auditar(request, 'editar', 'Equipo', 0, f'Solicitud de equipo a {destino} por {persona}')
+            messages.success(request, f'Solicitud enviada a {destino}.')
+            return redirect('solicitud_list')
+    else:
+        form = SolicitudEquipoForm(departamento=depto, departamentos=departamentos)
+    return render(request, 'inventario/solicitud_form.html', {'form': form})
+
+
+def solicitud_aprobar(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    solicitud = get_object_or_404(SolicitudEquipo, pk=pk)
+    if solicitud.estado != 'pendiente':
+        messages.error(request, 'La solicitud ya fue procesada.')
+        return redirect('solicitud_list')
+    depto = _departamento_sesion(request)
+    if depto is None or solicitud.departamento_destino_id not in _ids_alcanzables(request):
+        return _denegar(request, 'solicitud_list')
+    if request.method == 'POST':
+        datos = solicitud.datos_equipo
+        # D8: el equipo nace con el departamento_destino al aprobarse.
+        equipo = Equipo(
+            departamento_id=datos.get('departamento') or solicitud.departamento_destino_id,
+            municipio_id=datos.get('municipio'),
+            unidad_salud=datos.get('unidad_salud'),
+            tipo=datos.get('tipo'), denominacion=datos.get('denominacion'),
+            servicio=datos.get('servicio'), local=datos.get('local'),
+            marca=datos.get('marca'), modelo=datos.get('modelo'),
+            numero_serie=datos.get('numero_serie'), estado=datos.get('estado'),
+            observaciones=datos.get('observaciones'), frecuencia=datos.get('frecuencia'),
+            fuente=datos.get('fuente'),
+            ubicacion_temporal_municipio=datos.get('ubicacion_temporal_municipio'),
+            ubicacion_temporal_unidad=datos.get('ubicacion_temporal_unidad'),
+            nota_interna=datos.get('nota_interna'),
+        )
+        equipo.save()
+        solicitud.estado = 'aprobado'
+        solicitud.save(update_fields=['estado'])
+        _auditar(request, 'editar', 'Equipo', equipo.pk,
+                 f'Aprobó solicitud de {solicitud.creado_por} ({solicitud.departamento_destino})')
+        messages.success(request, 'Solicitud aprobada. Equipo creado.')
+        return redirect('solicitud_list')
+    return render(request, 'inventario/solicitud_confirm.html', {
+        'solicitud': solicitud,
+        'action': reverse('solicitud_aprobar', args=[pk]),
+    })
+
+
+def solicitud_cancelar(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    solicitud = get_object_or_404(SolicitudEquipo, pk=pk)
+    if solicitud.estado != 'pendiente':
+        messages.error(request, 'La solicitud ya fue procesada.')
+        return redirect('solicitud_list')
+    depto = _departamento_sesion(request)
+    if depto is None or solicitud.departamento_destino_id not in _ids_alcanzables(request):
+        return _denegar(request, 'solicitud_list')
+    if request.method == 'POST':
+        solicitud.estado = 'cancelado'
+        solicitud.save(update_fields=['estado'])
+        messages.success(request, 'Solicitud cancelada.')
+        return redirect('solicitud_list')
+    return render(request, 'inventario/solicitud_confirm.html', {
+        'solicitud': solicitud,
+        'action': reverse('solicitud_cancelar', args=[pk]),
+    })
+
+
+def cambio_aprobar(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    cambio = get_object_or_404(CambioPendiente, pk=pk)
+    if cambio.estado != 'pendiente':
+        messages.error(request, 'El cambio ya fue procesado.')
+        return redirect('solicitud_list')
+    depto = _departamento_sesion(request)
+    if depto is None or (cambio.departamento_dueno_id and cambio.departamento_dueno_id not in _ids_alcanzables(request)):
+        return _denegar(request, 'solicitud_list')
+    if request.method == 'POST':
+        if cambio.tipo == 'eliminacion' and cambio.equipo is not None:
+            cambio.equipo.eliminado_en = timezone.now()
+            cambio.equipo.save(update_fields=['eliminado_en'])
+        cambio.estado = 'aprobado'
+        cambio.save(update_fields=['estado'])
+        _auditar(request, 'editar', 'Equipo', cambio.equipo_id or 0, f'Aprobó cambio ({cambio.tipo}) de {cambio.solicitado_por}')
+        messages.success(request, 'Cambio aprobado.')
+        return redirect('solicitud_list')
+    return render(request, 'inventario/cambio_confirm.html', {
+        'cambio': cambio,
+        'action': reverse('cambio_aprobar', args=[pk]),
+    })
+
+
+def cambio_cancelar(request, pk):
+    if not _tiene_sesion(request):
+        return redirect('login')
+    cambio = get_object_or_404(CambioPendiente, pk=pk)
+    if cambio.estado != 'pendiente':
+        messages.error(request, 'El cambio ya fue procesado.')
+        return redirect('solicitud_list')
+    depto = _departamento_sesion(request)
+    if depto is None or (cambio.departamento_dueno_id and cambio.departamento_dueno_id not in _ids_alcanzables(request)):
+        return _denegar(request, 'solicitud_list')
+    if request.method == 'POST':
+        if cambio.tipo == 'eliminacion' and cambio.equipo is not None:
+            cambio.equipo.eliminado_en = None
+            cambio.equipo.save(update_fields=['eliminado_en'])
+        elif cambio.tipo == 'edicion' and cambio.equipo is not None and cambio.snapshot:
+            _restaurar_snapshot(cambio.equipo, cambio.snapshot)
+        cambio.estado = 'cancelado'
+        cambio.save(update_fields=['estado'])
+        _auditar(request, 'editar', 'Equipo', cambio.equipo_id or 0, f'Rechazó cambio ({cambio.tipo}) de {cambio.solicitado_por}')
+        messages.success(request, 'Cambio rechazado. Se restauró el estado anterior.')
+        return redirect('solicitud_list')
+    return render(request, 'inventario/cambio_confirm.html', {
+        'cambio': cambio,
+        'action': reverse('cambio_cancelar', args=[pk]),
+    })
+
+
+def centro_list(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    centros = Centro.objects.all().order_by('tipo', 'nombre')
+    return render(request, 'inventario/centro_list.html', {'centros': centros})
+
+
+def centro_create(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    if request.method == 'POST':
+        form = CentroForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Centro creado.')
+            return redirect('centro_list')
+    else:
+        form = CentroForm()
+    return render(request, 'inventario/centro_form.html', {'form': form})
+
+
+def municipio_create(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    if request.method == 'POST':
+        form = MunicipioForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Municipio creado.')
+            return redirect('municipio_list')
+    else:
+        form = MunicipioForm()
+    return render(request, 'inventario/municipio_form.html', {'form': form})
+
+
+def municipio_list(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    municipios = Municipio.objects.select_related('centro').order_by('centro__nombre', 'nombre')
+    return render(request, 'inventario/municipio_list.html', {'municipios': municipios})
