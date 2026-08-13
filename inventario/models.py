@@ -1,7 +1,64 @@
 import uuid
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.hashers import make_password, check_password
+
+
+class Centro(models.Model):
+    """Centro de la jerarquía provincial → territoriales (D4, D8)."""
+    TIPO_CHOICES = [
+        ('provincial', 'Provincial'),
+        ('territorial', 'Territorial'),
+    ]
+    nombre = models.CharField('Nombre', max_length=100, unique=True)
+    tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, default='provincial')
+    centro_padre = models.ForeignKey(
+        'self', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='hijos', verbose_name='Centro padre',
+    )
+    activo = models.BooleanField('Activo', default=True)
+
+    class Meta:
+        verbose_name = 'Centro'
+        verbose_name_plural = 'Centros'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+    def clean(self):
+        if self.tipo == 'territorial' and not self.centro_padre:
+            raise ValidationError({
+                'centro_padre': 'Un centro territorial debe tener un centro padre.',
+            })
+
+
+def centro_provincial_por_defecto():
+    """Centro provincial por defecto ('Santiago de Cuba', D2). Devuelve el pk."""
+    centro, _ = Centro.objects.get_or_create(
+        nombre='Santiago de Cuba',
+        defaults={'tipo': 'provincial'},
+    )
+    return centro.pk
+
+
+class Municipio(models.Model):
+    """Municipio normalizado vinculado a un centro (D2)."""
+    nombre = models.CharField('Nombre', max_length=200)
+    centro = models.ForeignKey(
+        Centro, on_delete=models.PROTECT,
+        related_name='municipios', verbose_name='Centro',
+    )
+
+    class Meta:
+        verbose_name = 'Municipio'
+        verbose_name_plural = 'Municipios'
+        ordering = ['nombre']
+        unique_together = ['centro', 'nombre']
+
+    def __str__(self):
+        return self.nombre
 
 
 class Departamento(models.Model):
@@ -10,6 +67,11 @@ class Departamento(models.Model):
     restringido = models.BooleanField('Restringido', default=True)
     activo = models.BooleanField('Activo', default=True)
     creado_en = models.DateTimeField('Creado el', auto_now_add=True)
+    centro = models.ForeignKey(
+        Centro, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='departamentos', verbose_name='Centro',
+        default=centro_provincial_por_defecto,
+    )
 
     class Meta:
         verbose_name = 'Departamento'
@@ -41,6 +103,18 @@ class Configuracion(models.Model):
     exigir_contrasena_personas = models.BooleanField(
         'Exigir contraseña de personas', default=False,
         help_text='Si está activa, las personas de los departamentos necesitan contraseña para entrar.',
+    )
+    permitir_login_centros_territoriales = models.BooleanField(
+        'Permitir login de centros territoriales', default=False,
+        help_text='Si está activa, el login de centro muestra el selector de centros provinciales y territoriales.',
+    )
+    mostrar_aprobaciones = models.BooleanField(
+        'Mostrar aprobaciones de cambios', default=False,
+        help_text='Si está activa, el departamento dueño ve y aprueba las solicitudes y cambios pendientes.',
+    )
+    mostrar_ordenes_servicio = models.BooleanField(
+        'Mostrar órdenes de servicio', default=False,
+        help_text='Si está activa, el módulo de órdenes de servicio se muestra en la navegación.',
     )
 
     class Meta:
@@ -184,6 +258,13 @@ class ParteTrabajo(models.Model):
         super().save(*args, **kwargs)
 
 
+class EquipoManager(models.Manager):
+    """Manager por defecto de Equipo: excluye equipos eliminados (soft-delete, D5)."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(eliminado_en__isnull=True)
+
+
 class Equipo(models.Model):
     TIPO_CHOICES = [
         ('RX', 'Rayos X'),
@@ -196,7 +277,10 @@ class Equipo(models.Model):
         related_name='equipos', verbose_name='Departamento',
         default=departamento_por_defecto,
     )
-    municipio = models.CharField('Municipio', max_length=300, blank=True)
+    municipio = models.ForeignKey(
+        'Municipio', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='equipos', verbose_name='Municipio',
+    )
     unidad_salud = models.CharField('Unidad de salud', max_length=500, blank=True)
     tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, default='OTRO')
     denominacion = models.CharField('Denominación', max_length=500, blank=True)
@@ -212,7 +296,11 @@ class Equipo(models.Model):
     ubicacion_temporal_municipio = models.CharField('Municipio temporal', max_length=300, blank=True)
     ubicacion_temporal_unidad = models.CharField('Unidad temporal', max_length=500, blank=True)
     nota_interna = models.TextField('Nota interna', blank=True)
+    eliminado_en = models.DateTimeField('Eliminado el', null=True, blank=True)
     fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    objects = EquipoManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = 'Equipo'
@@ -221,6 +309,75 @@ class Equipo(models.Model):
 
     def __str__(self):
         return f'{self.denominacion or self.tipo} - {self.unidad_salud} ({self.municipio})'
+
+
+class SolicitudEquipo(models.Model):
+    """Solicitud de alta de equipo entre departamentos del mismo centro (D7)."""
+    ESTADOS = [
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('cancelada', 'Cancelada'),
+    ]
+    equipo = models.ForeignKey(
+        Equipo, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='solicitudes', verbose_name='Equipo creado',
+    )
+    datos_equipo = models.JSONField('Datos del equipo', default=dict, blank=True)
+    departamento_destino = models.ForeignKey(
+        Departamento, on_delete=models.PROTECT,
+        related_name='solicitudes_equipo', verbose_name='Departamento destino',
+    )
+    estado = models.CharField('Estado', max_length=20, choices=ESTADOS, default='pendiente')
+    creado_por = models.ForeignKey(
+        Persona, on_delete=models.PROTECT,
+        related_name='solicitudes_equipo', verbose_name='Creado por',
+    )
+    fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Solicitud de equipo'
+        verbose_name_plural = 'Solicitudes de equipos'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f'Solicitud #{self.pk} → {self.departamento_destino} ({self.get_estado_display()})'
+
+
+class CambioPendiente(models.Model):
+    """Cambio de edición/eliminación aplicado y pendiente de aprobación del dueño (D1, D8)."""
+    TIPOS = [
+        ('edicion', 'Edición'),
+        ('eliminacion', 'Eliminación'),
+    ]
+    ESTADOS = [
+        ('pendiente', 'Pendiente'),
+        ('aprobado', 'Aprobado'),
+        ('cancelado', 'Cancelado'),
+    ]
+    equipo = models.ForeignKey(
+        Equipo, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='cambios_pendientes', verbose_name='Equipo',
+    )
+    tipo = models.CharField('Tipo', max_length=20, choices=TIPOS)
+    snapshot = models.JSONField('Snapshot previo', default=dict, blank=True)
+    estado = models.CharField('Estado', max_length=20, choices=ESTADOS, default='pendiente')
+    solicitado_por = models.ForeignKey(
+        Persona, on_delete=models.PROTECT,
+        related_name='cambios_pendientes_solicitados', verbose_name='Solicitado por',
+    )
+    departamento_dueno = models.ForeignKey(
+        Departamento, on_delete=models.PROTECT,
+        related_name='cambios_pendientes', verbose_name='Departamento dueño',
+    )
+    fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Cambio pendiente'
+        verbose_name_plural = 'Cambios pendientes'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} #{self.pk} — {self.equipo} ({self.get_estado_display()})'
 
 
 class PartePersona(models.Model):
