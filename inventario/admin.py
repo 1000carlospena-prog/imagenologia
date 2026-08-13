@@ -58,7 +58,7 @@ class ParteTrabajoAdmin(admin.ModelAdmin):
 class EquipoAdmin(admin.ModelAdmin):
     list_display = ['municipio', 'unidad_salud', 'denominacion', 'marca', 'modelo', 'estado']
     list_filter = ['municipio', 'tipo', 'estado']
-    search_fields = ['municipio', 'unidad_salud', 'marca', 'modelo', 'numero_serie']
+    search_fields = ['municipio__nombre', 'unidad_salud', 'marca', 'modelo', 'numero_serie']
 
 
 @admin.register(Periodo)

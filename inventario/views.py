@@ -1003,7 +1003,7 @@ def equipo_list(request):
     equipos = Equipo.objects.filter(departamento_id__in=ids)
     if q:
         equipos = equipos.filter(
-            Q(marca__icontains=q) | Q(municipio__icontains=q) |
+            Q(marca__icontains=q) | Q(municipio__nombre__icontains=q) |
             Q(unidad_salud__icontains=q) | Q(denominacion__icontains=q) |
             Q(modelo__icontains=q) | Q(numero_serie__icontains=q)
         )
@@ -1014,7 +1014,7 @@ def equipo_list(request):
     if f_unidad:
         equipos = equipos.filter(unidad_salud__in=f_unidad)
     if f_municipio:
-        equipos = equipos.filter(municipio=f_municipio)
+        equipos = equipos.filter(municipio__nombre=f_municipio)
     if f_estado:
         equipos = equipos.filter(estado=f_estado)
 
@@ -1022,12 +1022,12 @@ def equipo_list(request):
     marcas = scoped.values_list('marca', flat=True).exclude(marca='').distinct().order_by('marca')
     modelos = scoped.values_list('modelo', flat=True).exclude(modelo='').distinct().order_by('modelo')
     unidades = scoped.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
-    municipios_list = scoped.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
+    municipios_list = scoped.values_list('municipio__nombre', flat=True).filter(municipio__isnull=False).distinct().order_by('municipio__nombre')
     estados = scoped.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
 
-    santiago = equipos.filter(municipio__icontains='Santiago').order_by('unidad_salud', 'denominacion')
-    otros = equipos.exclude(municipio__icontains='Santiago').filter(municipio__gt='').order_by('municipio', 'unidad_salud')
-    sin_municipio = equipos.filter(municipio='').order_by('unidad_salud')
+    santiago = equipos.filter(municipio__nombre__icontains='Santiago').order_by('unidad_salud', 'denominacion')
+    otros = equipos.exclude(municipio__nombre__icontains='Santiago').filter(municipio__isnull=False).order_by('municipio__nombre', 'unidad_salud')
+    sin_municipio = equipos.filter(municipio__isnull=True).order_by('unidad_salud')
 
     hospitales = {}
     for eq in santiago:
@@ -1038,7 +1038,7 @@ def equipo_list(request):
 
     municipios_agrup = {}
     for eq in otros:
-        mun = eq.municipio or 'Sin municipio'
+        mun = eq.municipio.nombre if eq.municipio else 'Sin municipio'
         if mun not in municipios_agrup:
             municipios_agrup[mun] = []
         municipios_agrup[mun].append(eq)
@@ -1071,10 +1071,10 @@ def _equipo_choices(alcanzables):
     scoped = Equipo.objects.filter(departamento_id__in=ids)
     estados = scoped.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
     unidades = list(scoped.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud'))
-    municipios = scoped.values_list('municipio', flat=True).exclude(municipio='').distinct().order_by('municipio')
+    municipios = scoped.values_list('municipio__nombre', flat=True).filter(municipio__isnull=False).distinct().order_by('municipio__nombre')
     mun_unidad = defaultdict(set)
-    for eq in scoped.exclude(municipio='').exclude(unidad_salud='').values('municipio', 'unidad_salud').distinct():
-        mun_unidad[eq['municipio']].add(eq['unidad_salud'])
+    for eq in scoped.filter(municipio__isnull=False).exclude(unidad_salud='').values('municipio__nombre', 'unidad_salud').distinct():
+        mun_unidad[eq['municipio__nombre']].add(eq['unidad_salud'])
     mun_unidad_json = {m: sorted(list(u)) for m, u in mun_unidad.items()}
     return estados, unidades, municipios, json.dumps(mun_unidad_json), json.dumps(unidades)
 
@@ -1213,8 +1213,8 @@ def equipo_estadisticas(request):
     estados = sorted(estados.items(), key=lambda kv: -kv[1])
 
     municipios = [
-        {'municipio': m['municipio'], 'total': m['n'], 'pct': pct(m['n'])}
-        for m in equipos.exclude(municipio='').values('municipio').annotate(n=Count('id')).order_by('-n')[:10]
+        {'municipio': m['municipio__nombre'], 'total': m['n'], 'pct': pct(m['n'])}
+        for m in equipos.exclude(municipio__isnull=True).values('municipio__nombre').annotate(n=Count('id')).order_by('-n')[:10]
     ]
 
     tipos = {}

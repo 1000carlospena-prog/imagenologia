@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from django.core.management.base import BaseCommand
 from openpyxl import load_workbook
-from inventario.models import Equipo
+from inventario.models import Equipo, Municipio, Centro, centro_provincial_por_defecto
 
 
 def limpiar(v):
@@ -46,6 +46,17 @@ class Command(BaseCommand):
         total = Equipo.objects.count()
         self.stdout.write(self.style.SUCCESS(f'{total} equipos importados.'))
 
+    def _municipio(self, nombre):
+        """Resuelve un nombre de municipio a la FK Municipio del centro por defecto."""
+        nombre = limpiar(nombre)
+        if not nombre:
+            return None
+        municipio, _ = Municipio.objects.get_or_create(
+            nombre=nombre,
+            defaults={'centro': centro_provincial_por_defecto()},
+        )
+        return municipio
+
     def _importar_rx(self, path):
         wb = load_workbook(path)
         for sheet_name in wb.sheetnames:
@@ -54,7 +65,7 @@ class Command(BaseCommand):
                 if not row[0]:
                     continue
                 Equipo.objects.create(
-                    municipio=limpiar(row[0]),
+                    municipio=self._municipio(row[0]),
                     tipo='RX',
                     unidad_salud=limpiar(row[2]),
                     denominacion=limpiar(row[3]),
@@ -75,7 +86,7 @@ class Command(BaseCommand):
                 if not row[0]:
                     continue
                 Equipo.objects.create(
-                    municipio=limpiar(row[0]),
+                    municipio=self._municipio(row[0]),
                     tipo='USD',
                     unidad_salud=limpiar(row[1]),
                     marca=limpiar(row[2]),
@@ -135,6 +146,9 @@ class Command(BaseCommand):
                 for campo, idx in cols.items():
                     if idx < len(row) and row[idx] is not None:
                         if campo == 'especialidad':
+                            continue
+                        if campo == 'municipio':
+                            equipo_data['municipio'] = self._municipio(row[idx])
                             continue
                         equipo_data[campo] = limpiar(row[idx])
                 Equipo.objects.create(**equipo_data)

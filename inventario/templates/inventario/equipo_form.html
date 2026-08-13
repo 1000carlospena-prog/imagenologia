@@ -81,11 +81,6 @@
                             <option value="{{ e }}">
                         {% endfor %}
                     </datalist>
-                    <datalist id="municipio-sugerencias">
-                        {% for m in municipios %}
-                            <option value="{{ m }}">
-                        {% endfor %}
-                    </datalist>
                     <datalist id="unidad-sugerencias">
                         {% for u in unidades %}
                             <option value="{{ u }}">
@@ -134,8 +129,10 @@ function filterUnidad(datalistId, unidades) {
 
 var municipioInput = document.getElementById('id_municipio');
 if (municipioInput) {
-    municipioInput.addEventListener('input', function() {
-        var mun = municipioInput.value.trim();
+    municipioInput.addEventListener('change', function() {
+        var mun = municipioInput.value
+            ? municipioInput.options[municipioInput.selectedIndex].text
+            : '';
         var unidades = mun ? (munUnidad[mun] || []) : allUnidades;
         filterUnidad('unidad-sugerencias', unidades);
     });

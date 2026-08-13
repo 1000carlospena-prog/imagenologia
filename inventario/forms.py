@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import User
-from .models import Configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo
+from .models import Configuracion, Departamento, Persona, OrdenTrabajo, Asignacion, ParteTrabajo, Equipo, Municipio
 
 
 class ConfiguracionContrasenaForm(forms.Form):
@@ -356,7 +356,6 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
                   'frecuencia', 'ubicacion_temporal_municipio', 'ubicacion_temporal_unidad',
                   'nota_interna', 'departamento']
         widgets = {
-            'municipio': forms.TextInput(attrs={'class': 'form-control', 'list': 'municipio-sugerencias', 'autocomplete': 'off'}),
             'unidad_salud': forms.TextInput(attrs={'class': 'form-control', 'list': 'unidad-sugerencias', 'autocomplete': 'off'}),
             'tipo': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             'denominacion': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
@@ -373,3 +372,14 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
             'nota_interna': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'autocomplete': 'off'}),
             'departamento': forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        centro = getattr(self.departamento_actual, 'centro', None) if self.departamento_actual else None
+        municipios_qs = Municipio.objects.filter(centro=centro) if centro else Municipio.objects.all()
+        self.fields['municipio'] = forms.ModelChoiceField(
+            queryset=municipios_qs,
+            required=False,
+            empty_label='Sin municipio',
+            widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
+        )
