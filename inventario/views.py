@@ -278,12 +278,10 @@ def departamentos_admin(request):
     counts_p = {d['departamento_id']: d['n'] for d in counts_personas}
     counts_e = {d['departamento_id']: d['n'] for d in counts_equipos}
     departamentos = Departamento.objects.annotate(n_links=Count('personas')).all()
-    config = get_configuracion()
     return render(request, 'inventario/departamentos_admin.html', {
         'departamentos': departamentos,
         'counts_personas': counts_p,
         'counts_equipos': counts_e,
-        'config': config,
         'form_contrasena_centro': ConfiguracionContrasenaForm(),
     })
 

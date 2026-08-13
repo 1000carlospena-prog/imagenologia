@@ -1,0 +1,56 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Centros{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-hospital"></i> Centros</h4>
+    <a href="{% url 'centro_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Nuevo centro
+    </a>
+</div>
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Centro padre</th>
+                        <th>Activo</th>
+                        <th class="text-end">Municipios</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for centro in centros %}
+                        <tr>
+                            <td>{{ centro.nombre }}</td>
+                            <td>
+                                {% if centro.tipo == 'provincial' %}
+                                    <span class="badge bg-primary">Provincial</span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark">Territorial</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ centro.centro_padre|default:'—' }}</td>
+                            <td>
+                                {% if centro.activo %}
+                                    <span class="badge bg-success">Sí</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'municipio_list' %}?centro={{ centro.pk }}" class="small text-decoration-none">
+                                    {{ centro.municipio_set.count }} municipios
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Sin centros registrados</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

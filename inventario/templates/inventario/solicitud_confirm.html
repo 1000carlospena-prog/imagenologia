@@ -1,0 +1,30 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Confirmar solicitud{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-question-circle"></i> ¿Confirmar acción?
+            </div>
+            <div class="card-body">
+                <p class="mb-1">
+                    <strong>Solicitud de {{ solicitud.creado_por.nombre|default:solicitud.creado_por }}</strong>
+                    hacia <strong>{{ solicitud.departamento_destino.nombre }}</strong>
+                </p>
+                <p class="text-muted small mb-3">
+                    {{ solicitud.datos_equipo.tipo|default:'—' }} {{ solicitud.datos_equipo.denominacion|default:'' }}
+                    {% if solicitud.datos_equipo.numero_serie %} · {{ solicitud.datos_equipo.numero_serie }}{% endif %}
+                </p>
+                <form method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-check-lg"></i> Confirmar
+                    </button>
+                    <a href="{% url 'solicitud_list' %}" class="btn btn-outline-secondary w-100">Volver</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

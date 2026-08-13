@@ -1,0 +1,112 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Aprobaciones pendientes{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-check2-square"></i> Aprobaciones pendientes</h4>
+    <a href="{% url 'solicitud_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Solicitar equipo
+    </a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-box-seam"></i> Solicitudes de equipos
+                <span class="badge bg-light text-primary ms-1">{{ solicitudes|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if solicitudes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead>
+                                <tr>
+                                    <th>Equipo</th>
+                                    <th>Destino</th>
+                                    <th>Solicitante</th>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in solicitudes %}
+                                    <tr>
+                                        <td>
+                                            {{ s.datos_equipo.tipo|default:'—' }}
+                                            <span class="text-muted">{{ s.datos_equipo.denominacion|default:'' }}</span>
+                                            {% if s.datos_equipo.numero_serie %}<div class="text-muted fw-light">{{ s.datos_equipo.numero_serie }}</div>{% endif %}
+                                        </td>
+                                        <td>{{ s.departamento_destino.nombre }}</td>
+                                        <td>{{ s.creado_por.nombre|default:s.creado_por }}</td>
+                                        <td>{{ s.fecha_creacion|date:'d/m/Y H:i' }}</td>
+                                        <td class="text-end">
+                                            <a href="{% url 'solicitud_aprobar' s.pk %}" class="btn btn-success btn-sm" title="Aprobar">
+                                                <i class="bi bi-check-lg"></i>
+                                            </a>
+                                            <a href="{% url 'solicitud_cancelar' s.pk %}" class="btn btn-outline-danger btn-sm" title="Rechazar">
+                                                <i class="bi bi-x-lg"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-muted small">
+                        <i class="bi bi-inbox fs-3 d-block mb-2"></i> Sin solicitudes pendientes
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if cambios %}
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-arrow-repeat"></i> Cambios pendientes
+                <span class="badge bg-light text-primary ms-1">{{ cambios|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead>
+                            <tr>
+                                <th>Equipo</th>
+                                <th>Tipo</th>
+                                <th>Solicitante</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in cambios %}
+                                <tr>
+                                    <td>{{ c.equipo|default:'—' }}</td>
+                                    <td>
+                                        {% if c.tipo == 'eliminacion' %}
+                                            <span class="badge bg-danger">Eliminación</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">Edición</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ c.solicitado_por.nombre|default:c.solicitado_por }}</td>
+                                    <td class="text-end">
+                                        <a href="{% url 'cambio_aprobar' c.pk %}" class="btn btn-success btn-sm" title="Aprobar">
+                                            <i class="bi bi-check-lg"></i>
+                                        </a>
+                                        <a href="{% url 'cambio_cancelar' c.pk %}" class="btn btn-outline-danger btn-sm" title="Rechazar">
+                                            <i class="bi bi-x-lg"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

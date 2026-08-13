@@ -1,0 +1,45 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Confirmar cambio{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-question-circle"></i> ¿Confirmar acción?
+            </div>
+            <div class="card-body">
+                <p class="mb-1">
+                    <strong>{{ cambio.equipo|default:'Equipo eliminado' }}</strong>
+                    {% if cambio.tipo == 'eliminacion' %}
+                        <span class="badge bg-danger">Eliminación</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">Edición</span>
+                    {% endif %}
+                </p>
+                <p class="text-muted small mb-3">
+                    Solicitado por {{ cambio.solicitado_por.nombre|default:cambio.solicitado_por }} ·
+                    Dueño: {{ cambio.departamento_dueno.nombre|default:'—' }} ·
+                    {{ cambio.fecha_creacion|date:'d/m/Y H:i' }}
+                </p>
+                {% if cambio.tipo == 'edicion' and cambio.snapshot %}
+                    <div class="alert alert-light border small mb-3">
+                        <strong>Estado anterior (se restaurará si rechazas):</strong>
+                        <ul class="mb-0 mt-1">
+                            {% for k, v in cambio.snapshot.items %}
+                                {% if v %}<li><strong>{{ k }}</strong>: {{ v }}</li>{% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                <form method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-check-lg"></i> Confirmar
+                    </button>
+                    <a href="{% url 'solicitud_list' %}" class="btn btn-outline-secondary w-100">Volver</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
