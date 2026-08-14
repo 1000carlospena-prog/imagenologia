@@ -119,11 +119,11 @@ def _ids_propios(request):
     """Alcance de PERSONAS y ÓRDENES: cada departamento ve SOLO el suyo
     (aunque sea global); staff y visitante ven todo."""
     if request.user.is_staff or request.session.get('is_visitor'):
-        return Departamento.objects.all()
+        return set(Departamento.objects.all().values_list('pk', flat=True))
     depto = _departamento_sesion(request)
     if depto:
-        return Departamento.objects.filter(pk=depto.pk)
-    return Departamento.objects.none()
+        return {depto.pk}
+    return set()
 
 
 def _denegar(request, url_name):
