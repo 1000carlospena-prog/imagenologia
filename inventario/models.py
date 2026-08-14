@@ -61,15 +61,23 @@ class DepartamentoCentro(models.Model):
         return check_password(contrasena, self.contrasena)
 
 
+CONTRASENA_DEFECTO_TERRITORIAL = '12345678'
+
+
 def verificar_contrasena_departamento(departamento, contrasena, centro=None):
     """Valida la contraseña de un departamento; si el centro territorial tiene
-    contraseña local (DepartamentoCentro) se usa esa, si no la del departamento."""
+    contraseña local (DepartamentoCentro) se usa esa; si no, en un centro
+    territorial la contraseña por defecto es 12345678 (la departamento la puede
+    cambiar desde la gestión); fuera de un centro territorial se usa la del
+    departamento."""
     if centro is not None:
         local = DepartamentoCentro.objects.filter(
             departamento=departamento, centro=centro,
         ).first()
         if local:
             return local.verificar_contrasena(contrasena)
+        if centro.tipo == 'territorial':
+            return contrasena == CONTRASENA_DEFECTO_TERRITORIAL
     return departamento.verificar_contrasena(contrasena)
 
 
@@ -194,6 +202,10 @@ class Persona(models.Model):
     activo = models.BooleanField('Activo', default=True)
     fecha_creacion = models.DateTimeField('Fecha de creación', auto_now_add=True)
     fecha_actualizacion = models.DateTimeField('Última actualización', auto_now=True)
+    centro_origen = models.ForeignKey(
+        Centro, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='personas_origen', verbose_name='Centro donde se creó la persona',
+    )
 
     class Meta:
         verbose_name = 'Persona'

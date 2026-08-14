@@ -112,9 +112,13 @@
                                 </button>
                             </form>
                             <div class="text-center mt-3">
+                                {% if not request.session.centro_territorial_pk %}
                                 <a href="{% url 'crear_departamento' %}" class="small text-decoration-none">
                                     <i class="bi bi-plus-circle"></i> Crear nuevo departamento
                                 </a>
+                                {% else %}
+                                <span class="small text-muted">Los departamentos de este centro son los del centro padre.</span>
+                                {% endif %}
                             </div>
                         </div>
                     {% endif %}

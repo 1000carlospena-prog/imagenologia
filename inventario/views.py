@@ -94,11 +94,25 @@ def _municipios_centro(request):
 def _equipos_visibles(request):
     """Equipos visibles para la sesión: alcance por departamentos y, si hay
     sesión territorial, SOLO los de los municipios que atiende."""
-    qs = Equipo.objects.filter(departamento_id__in=_ids_alcanzables(request))
+    qs = Equipo.objects.filter(departamento_id__in=_ids_alcanzables(request)).select_related('departamento', 'municipio')
     municipios = _municipios_centro(request)
     if municipios is not None:
         qs = qs.filter(municipio_id__in=municipios)
     return qs
+
+
+def _personas_visibles(request):
+    """Personas visibles para la sesión: las de sus departamentos y SOLO del
+    centro donde la sesión vive. El territorial NO ve las personas del centro
+    padre (y el provincial no ve las del territorial): cada persona pertenece
+    al centro donde se creó (centro_origen). Staff/visitante ven todas."""
+    if request.user.is_staff or request.session.get('is_visitor'):
+        return Persona.objects.all()
+    qs = Persona.objects.filter(departamento_id__in=_ids_propios(request))
+    centro_pk = request.session.get('centro_territorial_pk')
+    if centro_pk:
+        return qs.filter(centro_origen_id=centro_pk)
+    return qs.filter(centro_origen__isnull=True)
 
 
 def _ids_propios(request):
@@ -294,6 +308,10 @@ def crear_departamento(request):
     es_staff = request.user.is_authenticated and request.user.is_staff
     if request.user.is_authenticated and not es_staff:
         return redirect('select_persona')
+    # Los centros territoriales NO crean departamentos: heredan los del padre.
+    if request.session.get('centro_territorial_pk'):
+        messages.error(request, 'Los centros territoriales no crean departamentos: usan los del centro padre.')
+        return redirect('login')
     # Solo quien pasó por el login del centro (o entró como super admin) puede crear departamentos.
     if not es_staff and not request.session.get('centro_ok') and not request.user.is_superuser:
         messages.error(request, 'Debes pasar por el login del centro para poder crear un departamento.')
@@ -423,16 +441,40 @@ def departamento_editar(request, pk):
 
 
 def departamento_contrasena(request, pk):
-    if not request.user.is_staff:
-        return redirect('login')
+    """Cambia la contraseña del departamento. Si la sesión es de un centro
+    territorial, la contraseña se guarda como LOCAL de ese centro (el
+    departamento del padre no se altera); si no, se cambia la del propio
+    departamento. Puede usarla el staff (cualquier departamento) o el propio
+    departamento en sesión."""
     departamento = get_object_or_404(Departamento, pk=pk)
+    es_staff = request.user.is_authenticated and request.user.is_staff
+    depto_sesion = _departamento_sesion(request)
+    propio = depto_sesion is not None and depto_sesion.pk == departamento.pk
+    if not es_staff and not propio:
+        return _denegar(request, 'dashboard')
+    centro_territorial_pk = request.session.get('centro_territorial_pk')
+    centro = Centro.objects.filter(pk=centro_territorial_pk).first() if centro_territorial_pk else None
     if request.method == 'POST':
         form = DepartamentoContrasenaForm(request.POST)
         if form.is_valid():
-            departamento.contrasena = make_password(form.cleaned_data['contrasena'])
-            departamento.save(update_fields=['contrasena'])
-            messages.success(request, f'Contraseña de "{departamento.nombre}" actualizada.')
-            return redirect('departamentos_admin')
+            nueva = make_password(form.cleaned_data['contrasena'])
+            if centro is not None and centro.tipo == 'territorial':
+                DepartamentoCentro.objects.update_or_create(
+                    departamento=departamento, centro=centro,
+                    defaults={'contrasena': nueva},
+                )
+                _auditar(request, 'editar', 'Centro', centro.pk,
+                         f'Contraseña local de {departamento.nombre} en {centro.nombre}')
+                messages.success(request, f'Contraseña local de "{departamento.nombre}" en {centro.nombre} actualizada.')
+            else:
+                departamento.contrasena = nueva
+                departamento.save(update_fields=['contrasena'])
+                _auditar(request, 'editar', 'Departamento', departamento.pk,
+                         f'Contraseña de {departamento.nombre} actualizada')
+                messages.success(request, f'Contraseña de "{departamento.nombre}" actualizada.')
+            if es_staff:
+                return redirect('departamentos_admin')
+            return redirect('dashboard')
     else:
         form = DepartamentoContrasenaForm()
     return render(request, 'inventario/departamento_form.html', {
@@ -451,7 +493,7 @@ def select_persona(request):
         if 'persona_id' in request.POST:
             persona_id = request.POST.get('persona_id')
             try:
-                persona = Persona.objects.get(pk=persona_id, activo=True)
+                persona = _personas_visibles(request).get(pk=persona_id, activo=True)
             except Persona.DoesNotExist:
                 messages.error(request, 'Persona no encontrada.')
                 return redirect('select_persona')
@@ -481,18 +523,20 @@ def select_persona(request):
                 if departamento is None:
                     departamento, _ = Departamento.objects.get_or_create(nombre='Imagenología')
                 persona.departamento = departamento
+                centro_pk = request.session.get('centro_territorial_pk')
+                persona.centro_origen = Centro.objects.filter(pk=centro_pk).first() if centro_pk else None
                 persona.save()
                 messages.success(request, f'Persona "{persona.nombre}" creada. Selecciónala para iniciar.')
                 return redirect('select_persona')
             else:
-                personas = Persona.objects.filter(activo=True, departamento_id__in=ids).order_by('apellido', 'nombre')
+                personas = _personas_visibles(request).filter(activo=True).order_by('apellido', 'nombre')
                 return render(request, 'inventario/select_persona.html', {
                     'personas': personas,
                     'form': form,
                     'config': config,
                 })
         return redirect('select_persona')
-    personas = Persona.objects.filter(activo=True, departamento_id__in=ids).order_by('apellido', 'nombre')
+    personas = _personas_visibles(request).filter(activo=True).order_by('apellido', 'nombre')
     form = QuickPersonaForm()
     mostrar_departamento = len(ids) > 1 or request.user.is_superuser
     return render(request, 'inventario/select_persona.html', {
@@ -524,7 +568,7 @@ def dashboard(request):
     else:
         inicio, fin = _mes_actual_range()
 
-    personas = Persona.objects.filter(activo=True, departamento_id__in=ids).annotate(
+    personas = _personas_visibles(request).filter(activo=True).annotate(
         total_act=Sum('asignaciones__acciones', filter=Q(
             asignaciones__fecha__gte=inicio, asignaciones__fecha__lte=fin,
         )),
@@ -602,7 +646,7 @@ def persona_list(request):
     else:
         fi, ff = _mes_actual_range()
 
-    personas = Persona.objects.filter(departamento_id__in=ids)
+    personas = _personas_visibles(request)
     if query:
         personas = personas.filter(
             Q(nombre__icontains=query) | Q(apellido__icontains=query) |
@@ -647,7 +691,10 @@ def persona_create(request):
     if request.method == 'POST':
         form = PersonaForm(request.POST, departamento=depto, departamentos=departamentos)
         if form.is_valid():
-            form.save()
+            persona = form.save(commit=False)
+            centro_pk = request.session.get('centro_territorial_pk')
+            persona.centro_origen = Centro.objects.filter(pk=centro_pk).first() if centro_pk else None
+            persona.save()
             messages.success(request, 'Persona registrada correctamente.')
             return redirect('persona_list')
     else:
@@ -659,7 +706,7 @@ def persona_update(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
-    if persona.departamento_id not in _ids_alcanzables(request):
+    if not _personas_visibles(request).filter(pk=persona.pk).exists():
         return _denegar(request, 'persona_list')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
@@ -667,7 +714,10 @@ def persona_update(request, pk):
     if request.method == 'POST':
         form = PersonaForm(request.POST, instance=persona, departamento=depto, departamentos=departamentos)
         if form.is_valid():
-            form.save()
+            persona = form.save(commit=False)
+            centro_pk = request.session.get('centro_territorial_pk')
+            persona.centro_origen = Centro.objects.filter(pk=centro_pk).first() if centro_pk else None
+            persona.save()
             _auditar(request, 'editar', 'Persona', persona.pk, desc)
             messages.success(request, 'Persona actualizada correctamente.')
             return redirect('persona_list')
@@ -682,7 +732,7 @@ def persona_delete(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
-    if persona.departamento_id not in _ids_alcanzables(request):
+    if not _personas_visibles(request).filter(pk=persona.pk).exists():
         return _denegar(request, 'persona_list')
     desc = str(persona)
     if request.method == 'POST':
@@ -697,7 +747,7 @@ def persona_detail(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
     persona = get_object_or_404(Persona, pk=pk)
-    if persona.departamento_id not in _ids_alcanzables(request):
+    if not _personas_visibles(request).filter(pk=persona.pk).exists():
         return _denegar(request, 'persona_list')
     periodo = _get_periodo_activo(request)
 
@@ -1190,6 +1240,7 @@ def equipo_list(request):
         'hospitales': hospitales,
         'municipios': municipios_agrup,
         'sin_municipio': sin_municipio,
+        'mostrar_departamento': len(ids) > 1,
         'marcas': marcas,
         'modelos': modelos,
         'unidades': unidades,

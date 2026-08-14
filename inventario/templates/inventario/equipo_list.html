@@ -96,6 +96,7 @@
                             <th>Marca</th>
                             <th>Modelo</th>
                             <th>Serie</th>
+                            {% if mostrar_departamento %}<th>Departamento</th>{% endif %}
                             <th class="text-center">Estado</th>
                             <th class="text-center">Acciones</th>
                         </tr>
@@ -117,6 +118,11 @@
                             <td data-label="Marca">{{ eq.marca|default:"-" }}</td>
                             <td data-label="Modelo">{{ eq.modelo|default:"-" }}</td>
                             <td data-label="Serie"><code>{{ eq.numero_serie|default:"-" }}</code></td>
+                            {% if mostrar_departamento %}
+                            <td data-label="Departamento">
+                                <span class="badge bg-info text-dark">{{ eq.departamento.nombre }}</span>
+                            </td>
+                            {% endif %}
                             <td data-label="Estado" class="text-center badge-cell">
                                 {% if eq.estado == 'Funcionando' %}
                                     <span class="badge bg-success">Funcionando</span>
@@ -170,6 +176,7 @@
                                             <th>Equipo</th>
                                             <th>Marca</th>
                                             <th>Modelo</th>
+                                            {% if mostrar_departamento %}<th>Departamento</th>{% endif %}
                                             <th class="text-center">Estado</th>
                                             <th class="text-center">Acciones</th>
                                         </tr>
@@ -188,6 +195,11 @@
                                             </td>
                                             <td data-label="Marca">{{ eq.marca|default:"-" }}</td>
                                             <td data-label="Modelo">{{ eq.modelo|default:"-" }}</td>
+                                            {% if mostrar_departamento %}
+                                            <td data-label="Departamento">
+                                                <span class="badge bg-info text-dark">{{ eq.departamento.nombre }}</span>
+                                            </td>
+                                            {% endif %}
                                             <td data-label="Estado" class="text-center badge-cell">
                                                 {% if eq.estado == 'Funcionando' %}
                                                     <span class="badge bg-success">Funcionando</span>
@@ -238,6 +250,7 @@
                             <th>Equipo</th>
                             <th>Marca</th>
                             <th>Modelo</th>
+                            {% if mostrar_departamento %}<th>Departamento</th>{% endif %}
                             <th class="text-center">Estado</th>
                             <th class="text-center">Acciones</th>
                         </tr>
@@ -256,6 +269,11 @@
                             </td>
                             <td data-label="Marca">{{ eq.marca|default:"-" }}</td>
                             <td data-label="Modelo">{{ eq.modelo|default:"-" }}</td>
+                            {% if mostrar_departamento %}
+                            <td data-label="Departamento">
+                                <span class="badge bg-info text-dark">{{ eq.departamento.nombre }}</span>
+                            </td>
+                            {% endif %}
                             <td data-label="Estado" class="text-center badge-cell">
                                 {% if eq.estado == 'Funcionando' %}
                                     <span class="badge bg-success">Funcionando</span>

@@ -23,6 +23,13 @@
             </div>
         </form>
     </div>
+    {% if departamento_actual %}
+    <div class="col-auto ms-auto">
+        <a href="{% url 'departamento_contrasena' departamento_actual.pk %}" class="btn btn-outline-primary btn-responsive" title="Cambiar la contraseña de {{ departamento_actual.nombre }}">
+            <i class="bi bi-key"></i> Cambiar contraseña del departamento
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 
