@@ -60,6 +60,8 @@ urlpatterns = [
     path('aprobaciones/cambios/<int:pk>/cancelar/', views.cambio_cancelar, name='cambio_cancelar'),
     path('centros/', views.centro_list, name='centro_list'),
     path('centros/nuevo/', views.centro_create, name='centro_create'),
+    path('centros/<int:pk>/editar/', views.centro_edit, name='centro_edit'),
+    path('centros/contraseñas/', views.centro_contrasenas, name='centro_contrasenas'),
     path('municipios/', views.municipio_list, name='municipio_list'),
     path('municipios/nuevo/', views.municipio_create, name='municipio_create'),
 ]

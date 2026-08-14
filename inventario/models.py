@@ -18,6 +18,10 @@ class Centro(models.Model):
         related_name='hijos', verbose_name='Centro padre',
     )
     activo = models.BooleanField('Activo', default=True)
+    municipios_atendidos = models.ManyToManyField(
+        'Municipio', blank=True,
+        related_name='centros_que_atienden', verbose_name='Municipios que atiende',
+    )
 
     class Meta:
         verbose_name = 'Centro'
@@ -34,13 +38,47 @@ class Centro(models.Model):
             })
 
 
+class DepartamentoCentro(models.Model):
+    """Contraseña LOCAL de un departamento del centro padre vista desde un
+    centro territorial: los departamentos del territorial SON los del centro
+    padre, pero con la contraseña que el territorial decida."""
+    departamento = models.ForeignKey(
+        'Departamento', on_delete=models.PROTECT,
+        related_name='contrasenas_por_centro', verbose_name='Departamento',
+    )
+    centro = models.ForeignKey(
+        Centro, on_delete=models.PROTECT,
+        related_name='departamentos_contrasena', verbose_name='Centro',
+    )
+    contrasena = models.CharField('Contraseña', max_length=255)
+
+    class Meta:
+        verbose_name = 'Contraseña de departamento en centro'
+        verbose_name_plural = 'Contraseñas de departamentos por centro'
+        unique_together = [('departamento', 'centro')]
+
+    def verificar_contrasena(self, contrasena):
+        return check_password(contrasena, self.contrasena)
+
+
+def verificar_contrasena_departamento(departamento, contrasena, centro=None):
+    """Valida la contraseña de un departamento; si el centro territorial tiene
+    contraseña local (DepartamentoCentro) se usa esa, si no la del departamento."""
+    if centro is not None:
+        local = DepartamentoCentro.objects.filter(
+            departamento=departamento, centro=centro,
+        ).first()
+        if local:
+            return local.verificar_contrasena(contrasena)
+    return departamento.verificar_contrasena(contrasena)
+
+
 def centro_provincial_por_defecto():
     """Centro provincial por defecto ('Santiago de Cuba', D2). Devuelve el pk."""
-    centro, _ = Centro.objects.get_or_create(
-        nombre='Santiago de Cuba',
-        defaults={'tipo': 'provincial'},
-    )
-    return centro.pk
+    pk = Centro.objects.filter(nombre='Santiago de Cuba').values_list('pk', flat=True).first()
+    if pk is None:
+        return Centro.objects.create(nombre='Santiago de Cuba', tipo='provincial').pk
+    return pk
 
 
 class Municipio(models.Model):
@@ -67,6 +105,10 @@ class Departamento(models.Model):
     restringido = models.BooleanField('Restringido', default=True)
     activo = models.BooleanField('Activo', default=True)
     creado_en = models.DateTimeField('Creado el', auto_now_add=True)
+    servicio_ordenes = models.BooleanField(
+        'Servicio de órdenes', default=False,
+        help_text='Si está activa, el departamento usa el módulo de órdenes de servicio (acciones, horas, partes).',
+    )
     centro = models.ForeignKey(
         Centro, on_delete=models.PROTECT, null=True, blank=True,
         related_name='departamentos', verbose_name='Centro',
@@ -86,11 +128,13 @@ class Departamento(models.Model):
 
 
 def departamento_por_defecto():
-    departamento, _ = Departamento.objects.get_or_create(
-        nombre='Imagenología',
-        defaults={'contrasena': make_password('imagenologia2026')},
-    )
-    return departamento.pk
+    pk = Departamento.objects.filter(nombre__iexact='Imagenología').values_list('pk', flat=True).first()
+    if pk is None:
+        return Departamento.objects.create(
+            nombre='Imagenología',
+            contrasena=make_password('imagenologia2026'),
+        ).pk
+    return pk
 
 
 class Configuracion(models.Model):

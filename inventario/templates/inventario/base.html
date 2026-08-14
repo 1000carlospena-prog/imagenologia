@@ -32,12 +32,16 @@
                         <span class="d-none d-sm-inline small ms-1">Personas</span>
                     </a>
                 </li>
+                {% if configuracion_global.mostrar_ordenes_servicio %}
+                {% if not departamento_actual or departamento_actual.servicio_ordenes %}
                 <li class="nav-item">
                     <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'orden' in request.path and 'generar-orden' not in request.path %}active{% endif %}" href="{% url 'orden_list' %}" title="Órdenes">
                         <i class="bi bi-file-earmark-text fs-5 d-block d-sm-inline"></i>
                         <span class="d-none d-sm-inline small ms-1">Órdenes</span>
                     </a>
                 </li>
+                {% endif %}
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'historial' in request.path %}active{% endif %}" href="{% url 'historial' %}" title="Historial">
                         <i class="bi bi-clock-history fs-5 d-block d-sm-inline"></i>
@@ -106,6 +110,13 @@
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'centro_list' %}" aria-label="Administrar centros" title="Centros">
                             <i class="bi bi-hospital fs-5"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                {% if request.session.centro_territorial_pk %}
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-2" href="{% url 'centro_contrasenas' %}" aria-label="Contraseñas de departamentos" title="Contraseñas de departamentos">
+                            <i class="bi bi-key fs-5"></i>
                         </a>
                     </li>
                 {% endif %}

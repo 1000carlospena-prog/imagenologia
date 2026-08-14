@@ -29,6 +29,38 @@
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
+            {% if modo_integrantes %}
+            <table class="table table-hover align-middle mb-0 table-card-list">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Integrantes del departamento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in personas %}
+                    <tr class="{% if persona_actual and p.pk == persona_actual.pk %}table-active fw-bold{% endif %}">
+                        <td data-label="Integrante">
+                            <a href="{% url 'persona_detail' p.pk %}" class="text-decoration-none">
+                                {% if persona_actual and p.pk == persona_actual.pk %}
+                                    <i class="bi bi-person-check-fill text-primary"></i>
+                                {% else %}
+                                    <i class="bi bi-person text-muted"></i>
+                                {% endif %}
+                                {{ p.apellido }} {{ p.nombre }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3 d-block"></i>
+                            No hay integrantes registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
             <table class="table table-hover align-middle mb-0 table-card-list">
                 <thead class="table-primary">
                     <tr>
@@ -67,6 +99,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
     </div>
 </div>

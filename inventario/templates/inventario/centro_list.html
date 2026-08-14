@@ -18,6 +18,8 @@
                         <th>Centro padre</th>
                         <th>Activo</th>
                         <th class="text-end">Municipios</th>
+                        <th class="text-end">Municipios que atiende</th>
+                        <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -44,9 +46,21 @@
                                     {{ centro.municipio_set.count }} municipios
                                 </a>
                             </td>
+                            <td class="text-end">
+                                {% if centro.municipios_atendidos.count %}
+                                    <span class="small">{{ centro.municipios.count }} municipios</span>
+                                {% else %}
+                                    <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'centro_edit' centro.pk %}" class="btn btn-outline-primary btn-sm" title="Editar centro">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+                            </td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">Sin centros registrados</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">Sin centros registrados</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

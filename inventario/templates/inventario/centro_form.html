@@ -1,11 +1,12 @@
 {% extends 'inventario/base.html' %}
-{% block title %}Nuevo centro{% endblock %}
+{% block title %}{% if centro %}Editar centro{% else %}Nuevo centro{% endif %}{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6 col-lg-5">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-primary text-white">
-                <i class="bi bi-hospital"></i> Nuevo centro
+                <i class="bi bi-hospital"></i>
+                {% if centro %}Editar {{ centro.nombre }}{% else %}Nuevo centro{% endif %}
             </div>
             <div class="card-body p-4">
                 <form method="POST" novalidate>
@@ -17,6 +18,9 @@
                         <div class="mb-3">
                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
                             {{ field }}
+                            {% if field.help_text %}
+                                <div class="form-text small">{{ field.help_text }}</div>
+                            {% endif %}
                             {% if field.errors %}
                                 <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
                             {% endif %}

@@ -13,13 +13,14 @@ import uuid
 from .models import (
     Configuracion, get_configuracion, Departamento, Persona, OrdenTrabajo, Asignacion,
     ParteTrabajo, PartePersona, Equipo, Auditoria, Periodo, VisitaLink, Centro, Municipio,
-    SolicitudEquipo, CambioPendiente, CAMPO_SNAPSHOT, centro_provincial_por_defecto,
+    SolicitudEquipo, CambioPendiente, DepartamentoCentro, CAMPO_SNAPSHOT,
+    centro_provincial_por_defecto,
 )
 from .forms import (
     PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, LoginDepartamentoForm,
     LoginCentroForm, ConfiguracionContrasenaForm, QuickPersonaForm, ParteTrabajoForm,
     EquipoForm, CrearDepartamentoForm, SolicitudEquipoForm, CentroForm, MunicipioForm,
-    DepartamentoEditarForm, DepartamentoContrasenaForm,
+    DepartamentoEditarForm, DepartamentoContrasenaForm, DepartamentoCentroForm,
 )
 
 
@@ -55,7 +56,8 @@ def _departamento_sesion(request):
 
 def alcanzar_departamentos(request):
     """Departamentos alcanzables según el rol/sesión (P2-D2):
-    staff/visitante -> todos; territorial -> solo su centro (centro_territorial_pk);
+    staff/visitante -> todos; territorial -> los del CENTRO PADRE (sus
+    departamentos son los del padre, con contraseñas locales propias);
     departamento restringido -> solo el suyo; global -> todos."""
     if request.user.is_staff:
         return Departamento.objects.all()
@@ -66,6 +68,9 @@ def alcanzar_departamentos(request):
         return Departamento.objects.filter(pk=depto.pk)
     centro_territorial_pk = request.session.get('centro_territorial_pk')
     if centro_territorial_pk:
+        centro = Centro.objects.filter(pk=centro_territorial_pk).first()
+        if centro and centro.centro_padre_id:
+            return Departamento.objects.filter(centro_id=centro.centro_padre_id)
         return Departamento.objects.filter(centro_id=centro_territorial_pk)
     if depto and not depto.restringido:
         return Departamento.objects.all()
@@ -74,6 +79,37 @@ def alcanzar_departamentos(request):
 
 def _ids_alcanzables(request):
     return set(alcanzar_departamentos(request).values_list('pk', flat=True))
+
+
+def _municipios_centro(request):
+    """Municipios que atiende el centro territorial de la sesión (o None si no
+    hay sesión territorial: entonces se ven todos los municipios)."""
+    centro_pk = request.session.get('centro_territorial_pk')
+    if not centro_pk:
+        return None
+    centro = Centro.objects.filter(pk=centro_pk).first()
+    return centro.municipios_atendidos.all() if centro else Municipio.objects.none()
+
+
+def _equipos_visibles(request):
+    """Equipos visibles para la sesión: alcance por departamentos y, si hay
+    sesión territorial, SOLO los de los municipios que atiende."""
+    qs = Equipo.objects.filter(departamento_id__in=_ids_alcanzables(request))
+    municipios = _municipios_centro(request)
+    if municipios is not None:
+        qs = qs.filter(municipio_id__in=municipios)
+    return qs
+
+
+def _ids_propios(request):
+    """Alcance de PERSONAS y ÓRDENES: cada departamento ve SOLO el suyo
+    (aunque sea global); staff y visitante ven todo."""
+    if request.user.is_staff or request.session.get('is_visitor'):
+        return Departamento.objects.all()
+    depto = _departamento_sesion(request)
+    if depto:
+        return Departamento.objects.filter(pk=depto.pk)
+    return Departamento.objects.none()
 
 
 def _denegar(request, url_name):
@@ -107,13 +143,18 @@ def _persona_sesion(request):
 
 
 def _mismo_centro(request, equipo):
-    """P2-D7: la sesión territorial solo opera dentro de su centro; el resto (provincial,
-    staff, visitante) opera en cualquier centro."""
+    """P2-D7: la sesión territorial opera SOLO los equipos de los municipios que
+    atiende (los equipos del centro padre en esos municipios, con aprobación del
+    dueño); el resto (provincial, staff, visitante) opera en cualquier centro."""
     centro_pk = request.session.get('centro_territorial_pk')
     if not centro_pk:
         return True
-    depto = equipo.departamento
-    return depto is not None and depto.centro_id == centro_pk
+    if equipo.municipio_id is None:
+        return False
+    centro = Centro.objects.filter(pk=centro_pk).first()
+    if centro is None:
+        return False
+    return centro.municipios_atendidos.filter(pk=equipo.municipio_id).exists()
 
 
 def _snapshot_equipo(equipo):
@@ -141,10 +182,17 @@ def _restaurar_snapshot(equipo, snapshot):
 
 
 def _ordenes_habilitadas(request):
-    """Gating D6: las órdenes solo se ven/crean con la etiqueta activa."""
-    if get_configuracion().mostrar_ordenes_servicio:
+    """Gating D6 + servicio por departamento: solo staff/visitante y los
+    departamentos con servicio_ordenes activo usan el módulo de órdenes."""
+    if not get_configuracion().mostrar_ordenes_servicio:
+        messages.error(request, 'El módulo de órdenes de servicio está desactivado.')
+        return False
+    if request.user.is_staff or request.session.get('is_visitor'):
         return True
-    messages.error(request, 'El módulo de órdenes de servicio está desactivado.')
+    depto = _departamento_sesion(request)
+    if depto and depto.servicio_ordenes:
+        return True
+    messages.error(request, 'El módulo de órdenes de servicio no está habilitado para este departamento.')
     return False
 
 
@@ -398,7 +446,7 @@ def select_persona(request):
     config = get_configuracion()
     if request.user.is_superuser:
         return redirect('admin_panel')
-    ids = _ids_alcanzables(request)
+    ids = _ids_propios(request)
     if request.method == 'POST':
         if 'persona_id' in request.POST:
             persona_id = request.POST.get('persona_id')
@@ -459,7 +507,7 @@ def dashboard(request):
     if not _tiene_sesion(request):
         return redirect('login')
     persona_id = request.session.get('persona_id')
-    ids = _ids_alcanzables(request)
+    ids = _ids_propios(request)
 
     pk = request.GET.get('periodo')
     if pk:
@@ -531,6 +579,14 @@ def dashboard(request):
         'total_acciones_global': total_acciones_global,
         'total_horas_global': total_horas_global,
         'total_he_global': total_he_global,
+        # Departamentos sin el servicio de órdenes ven SOLO los nombres de sus
+        # integrantes; Imagenología (y staff/visitante) ven el panel completo.
+        'modo_integrantes': bool(
+            _departamento_sesion(request)
+            and not _departamento_sesion(request).servicio_ordenes
+            and not request.user.is_staff
+            and not request.session.get('is_visitor')
+        ),
     }
     return render(request, 'inventario/dashboard.html', context)
 
@@ -538,7 +594,7 @@ def dashboard(request):
 def persona_list(request):
     if not _tiene_sesion(request):
         return redirect('login')
-    ids = _ids_alcanzables(request)
+    ids = _ids_propios(request)
     query = request.GET.get('q', '')
     periodo = _get_periodo_activo(request)
     if periodo:
@@ -681,7 +737,7 @@ def orden_list(request):
         return redirect('login')
     if not _ordenes_habilitadas(request):
         return redirect('dashboard')
-    ids = _ids_alcanzables(request)
+    ids = _ids_propios(request)
     query = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
     f_persona = request.GET.get('persona', '')
@@ -1087,7 +1143,7 @@ def equipo_list(request):
     f_municipio = request.GET.get('municipio', '')
     f_estado = request.GET.get('estado', '')
 
-    equipos = Equipo.objects.filter(departamento_id__in=ids)
+    equipos = _equipos_visibles(request)
     if q:
         equipos = equipos.filter(
             Q(marca__icontains=q) | Q(municipio__nombre__icontains=q) |
@@ -1105,7 +1161,7 @@ def equipo_list(request):
     if f_estado:
         equipos = equipos.filter(estado=f_estado)
 
-    scoped = Equipo.objects.filter(departamento_id__in=ids)
+    scoped = _equipos_visibles(request)
     marcas = scoped.values_list('marca', flat=True).exclude(marca='').distinct().order_by('marca')
     modelos = scoped.values_list('modelo', flat=True).exclude(modelo='').distinct().order_by('modelo')
     unidades = scoped.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud')
@@ -1151,11 +1207,13 @@ def equipo_list(request):
     return render(request, 'inventario/equipo_list.html', context)
 
 
-def _equipo_choices(alcanzables):
+def _equipo_choices(alcanzables, municipios_qs=None):
     import json
     from collections import defaultdict
     ids = [d.pk for d in alcanzables]
     scoped = Equipo.objects.filter(departamento_id__in=ids)
+    if municipios_qs is not None:
+        scoped = scoped.filter(municipio_id__in=municipios_qs)
     estados = scoped.values_list('estado', flat=True).exclude(estado='').distinct().order_by('estado')
     unidades = list(scoped.values_list('unidad_salud', flat=True).exclude(unidad_salud='').distinct().order_by('unidad_salud'))
     municipios = scoped.values_list('municipio__nombre', flat=True).filter(municipio__isnull=False).distinct().order_by('municipio__nombre')
@@ -1182,8 +1240,9 @@ def equipo_create(request):
         return redirect('login')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
+    municipios_qs = _municipios_centro(request)
     if request.method == 'POST':
-        form = EquipoForm(request.POST, departamento=depto, departamentos=departamentos)
+        form = EquipoForm(request.POST, departamento=depto, departamentos=departamentos, municipios_qs=municipios_qs)
         if form.is_valid():
             destino = form.cleaned_data.get('departamento_destino')
             if destino is None or (depto and destino.pk == depto.pk):
@@ -1210,8 +1269,8 @@ def equipo_create(request):
             messages.success(request, f'Solicitud enviada a {destino}. El departamento destino debe aprobarla.')
             return redirect('equipo_list')
     else:
-        form = EquipoForm(departamento=depto, departamentos=departamentos)
-    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices(departamentos)
+        form = EquipoForm(departamento=depto, departamentos=departamentos, municipios_qs=municipios_qs)
+    estados, unidades, municipios, mun_unidad_json, all_unidades_json = _equipo_choices(departamentos, municipios_qs)
     return render(request, 'inventario/equipo_form.html', {
         'form': form, 'crear': True, 'estados': estados,
         'unidades': unidades, 'municipios': municipios,
@@ -1580,8 +1639,9 @@ def solicitud_create(request):
         return redirect('login')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
+    municipios_qs = _municipios_centro(request)
     if request.method == 'POST':
-        form = SolicitudEquipoForm(request.POST, departamento=depto, departamentos=departamentos)
+        form = SolicitudEquipoForm(request.POST, departamento=depto, departamentos=departamentos, municipios_qs=municipios_qs)
         if form.is_valid():
             destino = form.cleaned_data['departamento_destino']
             persona = _persona_sesion(request)
@@ -1597,7 +1657,7 @@ def solicitud_create(request):
             messages.success(request, f'Solicitud enviada a {destino}.')
             return redirect('solicitud_list')
     else:
-        form = SolicitudEquipoForm(departamento=depto, departamentos=departamentos)
+        form = SolicitudEquipoForm(departamento=depto, departamentos=departamentos, municipios_qs=municipios_qs)
     return render(request, 'inventario/solicitud_form.html', {'form': form})
 
 
@@ -1733,6 +1793,62 @@ def centro_create(request):
     else:
         form = CentroForm()
     return render(request, 'inventario/centro_form.html', {'form': form})
+
+
+def centro_edit(request, pk):
+    if not request.user.is_staff:
+        return redirect('login')
+    centro = get_object_or_404(Centro, pk=pk)
+    if request.method == 'POST':
+        form = CentroForm(request.POST, instance=centro)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Centro {centro.nombre} actualizado.')
+            return redirect('centro_list')
+    else:
+        form = CentroForm(instance=centro)
+    return render(request, 'inventario/centro_form.html', {'form': form, 'centro': centro})
+
+
+def centro_contrasenas(request):
+    """Sesión territorial: gestiona las contraseñas LOCALES que sus departamentos
+    (los del centro padre) usan para entrar a SU centro."""
+    if not _tiene_sesion(request):
+        return redirect('login')
+    centro_pk = request.session.get('centro_territorial_pk')
+    if not centro_pk:
+        return _denegar(request, 'dashboard')
+    centro = get_object_or_404(Centro, pk=centro_pk)
+    if centro.tipo != 'territorial' or not centro.centro_padre_id:
+        return _denegar(request, 'dashboard')
+    departamentos = Departamento.objects.filter(
+        centro_id=centro.centro_padre_id, activo=True,
+    ).order_by('nombre')
+    if request.method == 'POST':
+        depto_pk = request.POST.get('departamento_pk')
+        form = DepartamentoCentroForm(request.POST)
+        departamento = departamentos.filter(pk=depto_pk).first()
+        if departamento and form.is_valid():
+            local, _ = DepartamentoCentro.objects.update_or_create(
+                departamento=departamento, centro=centro,
+                defaults={'contrasena': make_password(form.cleaned_data['contrasena'])},
+            )
+            _auditar(request, 'editar', 'Centro', centro.pk,
+                     f'Contraseña local de {departamento} en centro territorial {centro.nombre}')
+            messages.success(request, f'Contraseña local de {departamento} actualizada.')
+        else:
+            messages.error(request, 'No se pudo actualizar la contraseña.')
+        return redirect('centro_contrasenas')
+    locales = {
+        dc.departamento_id: dc
+        for dc in DepartamentoCentro.objects.filter(centro=centro)
+    }
+    return render(request, 'inventario/centro_contrasenas.html', {
+        'centro': centro,
+        'departamentos': departamentos,
+        'locales': locales,
+        'form': DepartamentoCentroForm(),
+    })
 
 
 def municipio_create(request):

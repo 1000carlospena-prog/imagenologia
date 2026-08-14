@@ -36,3 +36,11 @@ fix_municipio.py
 
 # Database backups
 backup_render/
+*.sqlite3.backup-*
+
+# Herramientas locales (skills / memoria / SDD)
+.atl/
+.engram/
+openspec/
+.db_backup/
+
