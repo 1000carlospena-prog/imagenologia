@@ -197,12 +197,17 @@ def _restaurar_snapshot(equipo, snapshot):
 
 def _ordenes_habilitadas(request):
     """Gating D6 + servicio por departamento: solo staff/visitante y los
-    departamentos con servicio_ordenes activo usan el módulo de órdenes."""
+    departamentos con servicio_ordenes activo usan el módulo de órdenes.
+    Los centros territoriales NO usan el módulo: es exclusivo del
+    departamento Imagenología del centro provincial (centro padre)."""
     if not get_configuracion().mostrar_ordenes_servicio:
         messages.error(request, 'El módulo de órdenes de servicio está desactivado.')
         return False
     if request.user.is_staff or request.session.get('is_visitor'):
         return True
+    if request.session.get('centro_territorial_pk'):
+        messages.error(request, 'El módulo de órdenes de servicio solo está disponible en el centro provincial.')
+        return False
     depto = _departamento_sesion(request)
     if depto and depto.servicio_ordenes:
         return True
@@ -623,13 +628,18 @@ def dashboard(request):
         'total_acciones_global': total_acciones_global,
         'total_horas_global': total_horas_global,
         'total_he_global': total_he_global,
-        # Departamentos sin el servicio de órdenes ven SOLO los nombres de sus
-        # integrantes; Imagenología (y staff/visitante) ven el panel completo.
+        # P4: el panel completo (nombre, órdenes, acciones, horas) SOLO lo ve el
+        # departamento Imagenología del centro PROVINCIAL (y staff/visitante).
+        # Los centros territoriales y demás departamentos ven SOLO los nombres
+        # de sus integrantes.
         'modo_integrantes': bool(
             _departamento_sesion(request)
-            and not _departamento_sesion(request).servicio_ordenes
             and not request.user.is_staff
             and not request.session.get('is_visitor')
+            and (
+                not _departamento_sesion(request).servicio_ordenes
+                or request.session.get('centro_territorial_pk')
+            )
         ),
     }
     return render(request, 'inventario/dashboard.html', context)
@@ -638,6 +648,11 @@ def dashboard(request):
 def persona_list(request):
     if not _tiene_sesion(request):
         return redirect('login')
+    # P4: la vista de personas es exclusiva del Super Admin (y del modo visita
+    # de solo lectura); los departamentos registran personas al loguearse.
+    if not (request.user.is_staff or request.session.get('is_visitor')):
+        messages.error(request, 'La gestión de personas se realiza al iniciar sesión en el departamento. Esta vista es exclusiva del Super Admin.')
+        return redirect('dashboard')
     ids = _ids_propios(request)
     query = request.GET.get('q', '')
     periodo = _get_periodo_activo(request)
@@ -686,6 +701,9 @@ def persona_list(request):
 def persona_create(request):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not request.user.is_staff:
+        messages.error(request, 'La gestión de personas es exclusiva del Super Admin.')
+        return redirect('dashboard')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
     if request.method == 'POST':
@@ -705,6 +723,9 @@ def persona_create(request):
 def persona_update(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not request.user.is_staff:
+        messages.error(request, 'La gestión de personas es exclusiva del Super Admin.')
+        return redirect('dashboard')
     persona = get_object_or_404(Persona, pk=pk)
     if not _personas_visibles(request).filter(pk=persona.pk).exists():
         return _denegar(request, 'persona_list')
@@ -731,6 +752,9 @@ def persona_update(request, pk):
 def persona_delete(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
+    if not request.user.is_staff:
+        messages.error(request, 'La gestión de personas es exclusiva del Super Admin.')
+        return redirect('dashboard')
     persona = get_object_or_404(Persona, pk=pk)
     if not _personas_visibles(request).filter(pk=persona.pk).exists():
         return _denegar(request, 'persona_list')
@@ -746,6 +770,10 @@ def persona_delete(request, pk):
 def persona_detail(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
+    # P4: solo el Super Admin (o modo visita) accede al detalle de personas.
+    if not (request.user.is_staff or request.session.get('is_visitor')):
+        messages.error(request, 'La gestión de personas se realiza al iniciar sesión en el departamento. Esta vista es exclusiva del Super Admin.')
+        return redirect('dashboard')
     persona = get_object_or_404(Persona, pk=pk)
     if not _personas_visibles(request).filter(pk=persona.pk).exists():
         return _denegar(request, 'persona_list')
@@ -1451,8 +1479,9 @@ def equipo_duplicados(request):
 def equipo_estadisticas(request):
     if not _tiene_sesion(request):
         return redirect('login')
-    ids = _ids_alcanzables(request)
-    equipos = Equipo.objects.filter(departamento_id__in=ids)
+    # Alcance territorial: SOLO los equipos de los municipios que atiende el
+    # centro (igual que equipo_list), no todos los del departamento padre.
+    equipos = _equipos_visibles(request)
     total = equipos.count()
 
     def pct(n):

@@ -47,6 +47,7 @@
                     {% for p in personas %}
                     <tr class="{% if persona_actual and p.pk == persona_actual.pk %}table-active fw-bold{% endif %}">
                         <td data-label="Integrante">
+                            {% if user.is_staff or is_visitor %}
                             <a href="{% url 'persona_detail' p.pk %}" class="text-decoration-none">
                                 {% if persona_actual and p.pk == persona_actual.pk %}
                                     <i class="bi bi-person-check-fill text-primary"></i>
@@ -55,6 +56,14 @@
                                 {% endif %}
                                 {{ p.apellido }} {{ p.nombre }}
                             </a>
+                            {% else %}
+                                {% if persona_actual and p.pk == persona_actual.pk %}
+                                    <i class="bi bi-person-check-fill text-primary"></i>
+                                {% else %}
+                                    <i class="bi bi-person text-muted"></i>
+                                {% endif %}
+                                {{ p.apellido }} {{ p.nombre }}
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -82,6 +91,7 @@
                     {% for p in personas %}
                     <tr class="{% if persona_actual and p.pk == persona_actual.pk %}table-active fw-bold{% endif %}">
                         <td data-label="Nombre">
+                            {% if user.is_staff or is_visitor %}
                             <a href="{% url 'persona_detail' p.pk %}" class="text-decoration-none">
                                 {% if persona_actual and p.pk == persona_actual.pk %}
                                     <i class="bi bi-person-check-fill text-primary"></i>
@@ -90,6 +100,14 @@
                                 {% endif %}
                                 {{ p.apellido }} {{ p.nombre }}
                             </a>
+                            {% else %}
+                                {% if persona_actual and p.pk == persona_actual.pk %}
+                                    <i class="bi bi-person-check-fill text-primary"></i>
+                                {% else %}
+                                    <i class="bi bi-person text-muted"></i>
+                                {% endif %}
+                                {{ p.apellido }} {{ p.nombre }}
+                            {% endif %}
                         </td>
                         <td data-label="Órdenes" class="text-center">{{ p.total_ordenes }}</td>
                         <td data-label="Acciones" class="text-center fw-bold">{{ p.total_act }}</td>

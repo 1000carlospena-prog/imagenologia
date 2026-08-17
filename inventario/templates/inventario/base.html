@@ -26,20 +26,24 @@
                         <span class="d-none d-sm-inline small ms-1">Dashboard</span>
                     </a>
                 </li>
+                {% if user.is_staff %}
                 <li class="nav-item">
                     <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'persona' in request.path %}active{% endif %}" href="{% url 'persona_list' %}" title="Personas">
                         <i class="bi bi-people fs-5 d-block d-sm-inline"></i>
                         <span class="d-none d-sm-inline small ms-1">Personas</span>
                     </a>
                 </li>
+                {% endif %}
                 {% if configuracion_global.mostrar_ordenes_servicio %}
                 {% if not departamento_actual or departamento_actual.servicio_ordenes %}
+                {% if not request.session.centro_territorial_pk %}
                 <li class="nav-item">
                     <a class="nav-link text-center py-1 px-2 px-sm-3 {% if 'orden' in request.path and 'generar-orden' not in request.path %}active{% endif %}" href="{% url 'orden_list' %}" title="Órdenes">
                         <i class="bi bi-file-earmark-text fs-5 d-block d-sm-inline"></i>
                         <span class="d-none d-sm-inline small ms-1">Órdenes</span>
                     </a>
                 </li>
+                {% endif %}
                 {% endif %}
                 {% endif %}
                 <li class="nav-item">

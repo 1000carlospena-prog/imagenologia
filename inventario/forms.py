@@ -433,6 +433,7 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
                 label='Departamento destino',
                 queryset=destino_qs,
                 empty_label='— Alta directa en mi departamento —',
+                required=False,  # Vacío = alta directa en el departamento de la sesión.
                 widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
             )
             self.fields.pop('departamento')
