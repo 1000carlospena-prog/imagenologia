@@ -19,7 +19,7 @@ from .models import (
 from .forms import (
     PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, LoginDepartamentoForm,
     LoginCentroForm, ConfiguracionContrasenaForm, QuickPersonaForm, ParteTrabajoForm,
-    EquipoForm, CrearDepartamentoForm, SolicitudEquipoForm, CentroForm, MunicipioForm,
+    EquipoForm, CrearDepartamentoForm, CentroForm, MunicipioForm,
     DepartamentoEditarForm, DepartamentoContrasenaForm, DepartamentoCentroForm,
 )
 
@@ -1330,7 +1330,26 @@ def equipo_create(request):
                 equipo.departamento = depto or destino
                 equipo.save()
                 _auditar(request, 'editar', 'Equipo', equipo.pk, f'Creó {equipo}')
-                messages.success(request, 'Equipo creado.')
+                # P5: en sesión territorial el alta directa queda pendiente de
+                # aprobación en el departamento dueño (el del padre): visible
+                # aquí, reversible/allí (cancelar = eliminar el equipo creado).
+                if request.session.get('centro_territorial_pk'):
+                    persona = _persona_sesion(request)
+                    if persona is None:
+                        messages.error(request, 'Debes iniciar sesión como persona para registrar el equipo pendiente de aprobación.')
+                        return redirect('equipo_list')
+                    datos_snap = {}
+                    for campo, valor in form.cleaned_data.items():
+                        if campo == 'departamento_destino':
+                            continue
+                        datos_snap[campo] = valor.pk if hasattr(valor, 'pk') else valor
+                    CambioPendiente.objects.create(
+                        equipo=equipo, tipo='creacion', snapshot=datos_snap,
+                        solicitado_por=persona, departamento_dueno=equipo.departamento,
+                    )
+                    messages.success(request, 'Equipo creado. El departamento dueño debe aprobarlo (puede revertirlo en Aprobaciones).')
+                else:
+                    messages.success(request, 'Equipo creado.')
                 return redirect('equipo_list')
             # Destino ajeno → SolicitudEquipo pendiente (P2-D3/D7: el dueño aprueba, D8).
             persona = _persona_sesion(request)
@@ -1368,9 +1387,15 @@ def equipo_update(request, pk):
         return _denegar(request, 'equipo_list')
     depto = _departamento_sesion(request)
     departamentos = alcanzar_departamentos(request)
-    es_propio = depto is not None and equipo.departamento_id == depto.pk
+    # P5: en sesión territorial el cambio SIEMPRE queda pendiente en el dueño
+    # (aunque el equipo sea del departamento de la sesión) — el padre decide.
+    es_propio = depto is not None and equipo.departamento_id == depto.pk \
+        and not request.session.get('centro_territorial_pk')
     desc = str(equipo)
     if request.method == 'POST':
+        # El snapshot del estado previo debe capturarse ANTES de validar el
+        # form: ModelForm.is_valid() ya muta el instance (construct_instance).
+        snapshot_previo = _snapshot_equipo(equipo)
         form = EquipoForm(request.POST, instance=equipo, departamento=depto, departamentos=departamentos)
         if form.is_valid():
             if es_propio:
@@ -1383,10 +1408,9 @@ def equipo_update(request, pk):
             if persona is None:
                 messages.error(request, 'Debes iniciar sesión como persona para editar un equipo de otro departamento.')
                 return redirect('equipo_list')
-            snapshot = _snapshot_equipo(equipo)
             form.save()
             CambioPendiente.objects.create(
-                equipo=equipo, tipo='edicion', snapshot=snapshot,
+                equipo=equipo, tipo='edicion', snapshot=snapshot_previo,
                 solicitado_por=persona, departamento_dueno=equipo.departamento,
             )
             _auditar(request, 'editar', 'Equipo', equipo.pk, desc)
@@ -1412,7 +1436,10 @@ def equipo_delete(request, pk):
     if not _mismo_centro(request, equipo):
         return _denegar(request, 'equipo_list')
     depto = _departamento_sesion(request)
-    es_propio = depto is not None and equipo.departamento_id == depto.pk
+    # P5: en sesión territorial nunca hard-delete directo — queda pendiente
+    # en el departamento dueño (el padre) aunque el equipo sea "propio".
+    es_propio = depto is not None and equipo.departamento_id == depto.pk \
+        and not request.session.get('centro_territorial_pk')
     desc = str(equipo)
     if request.method == 'POST':
         if es_propio:
@@ -1597,9 +1624,20 @@ def historial(request):
     if request.user.is_staff:
         logs = Auditoria.objects.select_related('usuario').all()
     else:
-        logs = Auditoria.objects.select_related('usuario').filter(
+        # P5: el territorial solo ve cambios referentes a equipos de los
+        # municipios que atiende, no todo el historial del centro padre.
+        municipios = _municipios_centro(request)
+        qs = Auditoria.objects.select_related('usuario').filter(
             usuario__departamento_id__in=_ids_alcanzables(request)
         )
+        if municipios is not None:
+            # all_objects: el historial conserva también los cambios de equipos
+            # ya eliminados de los municipios que atiende el territorial.
+            ids_equipos = Equipo.all_objects.filter(
+                municipio_id__in=municipios
+            ).values_list('pk', flat=True)
+            qs = qs.filter(objeto_id__in=ids_equipos)
+        logs = qs
     paginator = Paginator(logs, 50)
     page = request.GET.get('page', 1)
     logs_page = paginator.get_page(page)
@@ -1714,33 +1752,6 @@ def solicitud_list(request):
     return render(request, 'inventario/solicitud_list.html', context)
 
 
-def solicitud_create(request):
-    if not _tiene_sesion(request):
-        return redirect('login')
-    depto = _departamento_sesion(request)
-    departamentos = alcanzar_departamentos(request)
-    municipios_qs = _municipios_centro(request)
-    if request.method == 'POST':
-        form = SolicitudEquipoForm(request.POST, departamento=depto, departamentos=departamentos, municipios_qs=municipios_qs)
-        if form.is_valid():
-            destino = form.cleaned_data['departamento_destino']
-            persona = _persona_sesion(request)
-            if persona is None:
-                messages.error(request, 'Debes iniciar sesión como persona para enviar una solicitud.')
-                return redirect('equipo_list')
-            SolicitudEquipo.objects.create(
-                datos_equipo=form.snapshot(),
-                departamento_destino=destino,
-                creado_por=persona,
-            )
-            _auditar(request, 'editar', 'Equipo', 0, f'Solicitud de equipo a {destino} por {persona}')
-            messages.success(request, f'Solicitud enviada a {destino}.')
-            return redirect('solicitud_list')
-    else:
-        form = SolicitudEquipoForm(departamento=depto, departamentos=departamentos, municipios_qs=municipios_qs)
-    return render(request, 'inventario/solicitud_form.html', {'form': form})
-
-
 def solicitud_aprobar(request, pk):
     if not _tiene_sesion(request):
         return redirect('login')
@@ -1838,7 +1849,13 @@ def cambio_cancelar(request, pk):
     if depto is None or (cambio.departamento_dueno_id and cambio.departamento_dueno_id not in _ids_alcanzables(request)):
         return _denegar(request, 'solicitud_list')
     if request.method == 'POST':
-        if cambio.tipo == 'eliminacion' and cambio.equipo is not None:
+        if cambio.tipo == 'creacion' and cambio.equipo is not None:
+            # Revertir una creación territorial = eliminar el equipo creado
+            # (P5: el padre deshace el alta directa del territorial).
+            _auditar(request, 'eliminar', 'Equipo', cambio.equipo.pk,
+                     f'Rechazó creación de {cambio.solicitado_por} (equipo eliminado)')
+            Equipo.all_objects.get(pk=cambio.equipo.pk).delete()
+        elif cambio.tipo == 'eliminacion' and cambio.equipo is not None:
             cambio.equipo.eliminado_en = None
             cambio.equipo.save(update_fields=['eliminado_en'])
         elif cambio.tipo == 'edicion' and cambio.equipo is not None and cambio.snapshot:
@@ -1891,19 +1908,28 @@ def centro_edit(request, pk):
 
 
 def centro_contrasenas(request):
-    """Sesión territorial: gestiona las contraseñas LOCALES que sus departamentos
-    (los del centro padre) usan para entrar a SU centro."""
+    """Sesión territorial: cada departamento gestiona SOLO su contraseña LOCAL
+    (la que usa para entrar a SU centro); el Super Admin gestiona todas."""
     if not _tiene_sesion(request):
         return redirect('login')
+    if request.session.get('is_visitor'):
+        return _denegar(request, 'dashboard')
     centro_pk = request.session.get('centro_territorial_pk')
     if not centro_pk:
         return _denegar(request, 'dashboard')
     centro = get_object_or_404(Centro, pk=centro_pk)
     if centro.tipo != 'territorial' or not centro.centro_padre_id:
         return _denegar(request, 'dashboard')
+    es_staff = request.user.is_staff
     departamentos = Departamento.objects.filter(
         centro_id=centro.centro_padre_id, activo=True,
     ).order_by('nombre')
+    if not es_staff:
+        # Ningún departamento edita la contraseña de otro: solo la suya.
+        propio = _departamento_sesion(request)
+        if propio is None:
+            return _denegar(request, 'dashboard')
+        departamentos = departamentos.filter(pk=propio.pk)
     if request.method == 'POST':
         depto_pk = request.POST.get('departamento_pk')
         form = DepartamentoCentroForm(request.POST)
@@ -1927,6 +1953,7 @@ def centro_contrasenas(request):
         'centro': centro,
         'departamentos': departamentos,
         'locales': locales,
+        'es_staff': es_staff,
         'form': DepartamentoCentroForm(),
     })
 

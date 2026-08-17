@@ -53,7 +53,6 @@ urlpatterns = [
 
     # Jerarquía de centros territoriales (Fase 3)
     path('aprobaciones/', views.solicitud_list, name='solicitud_list'),
-    path('aprobaciones/solicitar/', views.solicitud_create, name='solicitud_create'),
     path('aprobaciones/solicitudes/<int:pk>/aprobar/', views.solicitud_aprobar, name='solicitud_aprobar'),
     path('aprobaciones/solicitudes/<int:pk>/cancelar/', views.solicitud_cancelar, name='solicitud_cancelar'),
     path('aprobaciones/cambios/<int:pk>/aprobar/', views.cambio_aprobar, name='cambio_aprobar'),

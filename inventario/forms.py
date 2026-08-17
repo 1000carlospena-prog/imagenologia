@@ -439,51 +439,6 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
             self.fields.pop('departamento')
 
 
-class SolicitudEquipoForm(forms.Form):
-    """Alta de equipo hacia un departamento específico (P2-D3/D7, D8)."""
-    departamento_destino = forms.ModelChoiceField(
-        label='Departamento específico',
-        queryset=Departamento.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
-        empty_label='Selecciona el departamento específico',
-    )
-
-    def __init__(self, *args, **kwargs):
-        kwargs.pop('centro_pk', None)
-        departamento = kwargs.pop('departamento', None)
-        kwargs.pop('departamentos', None)
-        municipios_qs = kwargs.pop('municipios_qs', None)
-        super().__init__(*args, **kwargs)
-        qs = Departamento.objects.filter(activo=True)
-        if departamento:
-            qs = qs.exclude(pk=departamento.pk)
-        self.fields['departamento_destino'].queryset = qs.order_by('nombre')
-        # Campos del equipo propuesto (CAMPO_SNAPSHOT sin 'departamento':
-        # el dueño lo impone al aprobar).
-        for campo in CAMPO_SNAPSHOT:
-            if campo == 'departamento':
-                continue
-            model_field = Equipo._meta.get_field(campo)
-            self.fields[campo] = model_field.formfield()
-            if campo == 'municipio' and municipios_qs is not None:
-                self.fields['municipio'] = forms.ModelChoiceField(
-                    queryset=municipios_qs, required=False, empty_label='Sin municipio',
-                    widget=forms.Select(attrs={'class': 'form-select', 'autocomplete': 'off'}),
-                )
-
-    def snapshot(self):
-        """Devuelve los datos del equipo propuesto (contrato CAMPO_SNAPSHOT)."""
-        datos = {}
-        for campo, valor in self.cleaned_data.items():
-            if campo == 'departamento_destino':
-                continue
-            if hasattr(valor, 'pk'):
-                datos[campo] = valor.pk
-            else:
-                datos[campo] = valor
-        return datos
-
-
 class CentroForm(forms.ModelForm):
     class Meta:
         model = Centro

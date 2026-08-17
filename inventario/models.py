@@ -408,6 +408,7 @@ class SolicitudEquipo(models.Model):
 class CambioPendiente(models.Model):
     """Cambio de edición/eliminación aplicado y pendiente de aprobación del dueño (D1, D8)."""
     TIPOS = [
+        ('creacion', 'Creación'),
         ('edicion', 'Edición'),
         ('eliminacion', 'Eliminación'),
     ]
