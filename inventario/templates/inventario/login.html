@@ -32,6 +32,11 @@
                 {% endif %}
 
                 <div class="card shadow-sm border-0">
+                    <div class="text-center mb-3">
+                        <a href="{% url 'guia_pdf' %}" class="btn btn-outline-primary btn-sm" target="_blank">
+                            <i class="bi bi-file-earmark-pdf"></i> Guía de uso (PDF)
+                        </a>
+                    </div>
                     {% if modo_centro %}
                         <div class="card-header bg-primary text-white text-center py-3">
                             <i class="bi bi-hospital"></i>

@@ -124,6 +124,13 @@
                         </a>
                     </li>
                 {% endif %}
+                {% if not user.is_superuser %}
+                    <li class="nav-item">
+                        <a class="nav-link py-1 px-2" href="{% url 'guia_pdf' %}" target="_blank" title="Guía de uso (PDF)" aria-label="Guía de uso">
+                            <i class="bi bi-question-circle fs-5"></i>
+                        </a>
+                    </li>
+                {% endif %}
                 {% if user.is_authenticated and not is_visitor %}
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'logout' %}" title="Cerrar sesión" aria-label="Cerrar sesión">

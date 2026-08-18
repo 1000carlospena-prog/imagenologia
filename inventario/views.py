@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.hashers import check_password, make_password
@@ -2000,3 +2001,225 @@ def municipio_list(request):
         return redirect('login')
     municipios = Municipio.objects.select_related('centro').order_by('centro__nombre', 'nombre')
     return render(request, 'inventario/municipio_list.html', {'municipios': municipios})
+
+
+# ---------------------------------------------------------------------------
+# Guía de uso en PDF para el personal de los centros (sin admin ni órdenes)
+# ---------------------------------------------------------------------------
+def guia_pdf(request):
+    """Genera la guía de uso (PDF) para las personas de los centros.
+
+    Es pública (no requiere sesión) para poder descargarse desde la pantalla
+    de acceso. Incluye capturas reales de la interfaz y NO cubre la
+    administración ni las órdenes de servicio, que corresponden al personal
+    autorizado del departamento de Imagenología.
+    """
+    from io import BytesIO
+    from pathlib import Path
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak, Table, TableStyle,
+    )
+
+    guia_dir = Path(__file__).resolve().parent / 'static' / 'inventario' / 'guia'
+
+    styles = {
+        'portada_titulo': ParagraphStyle(
+            'PortadaTitulo', fontName='Helvetica-Bold', fontSize=24, leading=29,
+            textColor=colors.HexColor('#0d6efd'), alignment=1, spaceAfter=10),
+        'portada_sub': ParagraphStyle(
+            'PortadaSub', fontName='Helvetica', fontSize=14, leading=19,
+            textColor=colors.HexColor('#6c757d'), alignment=1),
+        'seccion': ParagraphStyle(
+            'Seccion', fontName='Helvetica-Bold', fontSize=15, leading=19,
+            textColor=colors.HexColor('#0d6efd'), spaceBefore=16, spaceAfter=6),
+        'cuerpo': ParagraphStyle(
+            'Cuerpo', fontName='Helvetica', fontSize=10.5, leading=15,
+            textColor=colors.HexColor('#212529')),
+        'paso': ParagraphStyle(
+            'Paso', fontName='Helvetica-Bold', fontSize=11, leading=15,
+            textColor=colors.HexColor('#212529'), spaceBefore=10, spaceAfter=4),
+        'nota': ParagraphStyle(
+            'Nota', fontName='Helvetica-Oblique', fontSize=9.5, leading=13,
+            textColor=colors.HexColor('#6c757d'), spaceBefore=4, spaceAfter=8),
+        'pie': ParagraphStyle(
+            'Pie', fontName='Helvetica', fontSize=8.5, leading=11,
+            textColor=colors.HexColor('#6c757d'), alignment=1),
+    }
+
+    def img(name, width=6.6 * inch):
+        path = guia_dir / name
+        if not path.exists():
+            return Paragraph(f'[Imagen no disponible: {name}]', styles['nota'])
+        return Image(str(path), width=width, height=width * 0.617)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        leftMargin=0.8 * inch, rightMargin=0.8 * inch,
+        topMargin=0.7 * inch, bottomMargin=0.7 * inch,
+        title='Guía de uso del Sistema de Inventario',
+        author='Sistema de Inventario',
+    )
+
+    story = []
+    # ------------------------------------------------------------ Portada
+    story.append(Spacer(1, 1.2 * inch))
+    story.append(Paragraph('Guía de uso del Sistema de Inventario', styles['portada_titulo']))
+    story.append(Paragraph('Para el personal de los centros', styles['portada_sub']))
+    story.append(Spacer(1, 0.5 * inch))
+    story.append(Paragraph(
+        'Esta guía explica, paso a paso, cómo entrar al sistema y realizar las tareas '
+        'diarias: consultar los equipos, registrar equipos nuevos, revisar las '
+        'aprobaciones pendientes y ver el historial de cambios. Está pensada para '
+        'personas que usan el sistema por primera vez.', styles['cuerpo']))
+    story.append(Spacer(1, 0.3 * inch))
+    nota_portada = Table([[Paragraph(
+        '<b>Nota:</b> esta guía no incluye la administración de usuarios ni las '
+        'órdenes de servicio. Esas funciones corresponden únicamente al personal '
+        'autorizado del departamento de Imagenología.', styles['cuerpo'])]],
+        colWidths=[6.6 * inch])
+    nota_portada.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff3cd')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#ffc107')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+    ]))
+    story.append(nota_portada)
+    story.append(PageBreak())
+
+    # ------------------------------------------------------- 1. Entrar al sistema
+    story.append(Paragraph('1. Entrar al sistema', styles['seccion']))
+    story.append(Paragraph(
+        'Abra el navegador y escriba la dirección del sistema, o entre por el enlace '
+        'que le hayan compartido. Lo primero que verá es la pantalla de acceso del '
+        'centro:', styles['cuerpo']))
+    story.append(img('01_login.png'))
+    story.append(Paragraph('1. Elija su centro en la lista (si aparece).', styles['paso']))
+    story.append(Paragraph(
+        '2. Escriba la contraseña del centro. Es la misma para todo el centro '
+        '(CICEM); se la entrega el personal autorizado.', styles['paso']))
+    story.append(Paragraph(
+        '3. Pulse el botón <b>«Entrar al centro»</b>.', styles['paso']))
+    story.append(PageBreak())
+
+    # ------------------------------------------------- 2. Elegir departamento
+    story.append(Paragraph('2. Elegir departamento', styles['seccion']))
+    story.append(Paragraph(
+        'Después de entrar como centro, el sistema le pide elegir el departamento '
+        'y escribir la contraseña de ese departamento:', styles['cuerpo']))
+    story.append(img('02_login_departamento.png'))
+    story.append(Paragraph('1. Elija su departamento en la lista.', styles['paso']))
+    story.append(Paragraph(
+        '2. Escriba la contraseña del departamento y pulse <b>«Entrar»</b>.', styles['paso']))
+    story.append(Paragraph(
+        'Si su centro es territorial (municipio), los departamentos que verá son los '
+        'del centro principal al que pertenece.', styles['nota']))
+    story.append(PageBreak())
+
+    # ----------------------------------------------------- 3. Elegir tu nombre
+    story.append(Paragraph('3. Elegir tu nombre', styles['seccion']))
+    story.append(Paragraph(
+        'El sistema pregunta quién está usando la computadora. Seleccione su nombre '
+        'en la lista y pulse el botón:', styles['cuerpo']))
+    story.append(img('03_select_persona.png'))
+    story.append(Paragraph(
+        'Si su nombre no aparece, pulse <b>«Agregar nuevo usuario»</b>, escríbalo y '
+        'selecciónelo. Cada persona usa su propio nombre para que quede registrado '
+        'quién hizo cada tarea.', styles['paso']))
+    story.append(PageBreak())
+
+    # ------------------------------------------------------- 4. Pantalla principal
+    story.append(Paragraph('4. Tu pantalla principal (Dashboard)', styles['seccion']))
+    story.append(Paragraph(
+        'Al entrar verá el panel del departamento con la actividad del periodo '
+        'actual (los integrantes y sus acciones). Desde la barra superior puede '
+        'moverse por el sistema:', styles['cuerpo']))
+    story.append(img('04_dashboard.png'))
+    story.append(Paragraph(
+        '• <b>Dashboard</b>: panel principal del departamento.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Historial</b>: registro de todos los cambios.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Equipos</b>: inventario de equipos del departamento.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Estadísticas</b>: resúmenes de los equipos.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Aprobaciones</b>: solicitudes y cambios pendientes de revisar '
+        '(solo si su departamento recibe aprobaciones).', styles['paso']))
+    story.append(Paragraph(
+        'La barra derecha muestra el departamento activo, el icono para cambiar de '
+        'persona y la opción de cerrar sesión.', styles['nota']))
+    story.append(PageBreak())
+
+    # ----------------------------------------------------------- 5. Equipos
+    story.append(Paragraph('5. Consultar los equipos', styles['seccion']))
+    story.append(Paragraph(
+        'Pulse <b>«Equipos»</b> en la barra superior. Verá el inventario con todos '
+        'los equipos de su departamento. Puede buscar por texto, marca, modelo, '
+        'unidad de salud o municipio, y exportar los datos si el sistema lo permite:',
+        styles['cuerpo']))
+    story.append(img('05_equipos.png'))
+    story.append(Paragraph(
+        'Pulse <b>«Agregar»</b> para registrar un equipo nuevo, o el botón de '
+        'editar/eliminar de cada fila para modificar o quitar un equipo.',
+        styles['paso']))
+    story.append(PageBreak())
+
+    # ------------------------------------------------------ 6. Registrar equipo
+    story.append(Paragraph('6. Registrar un equipo', styles['seccion']))
+    story.append(Paragraph(
+        'Pulse <b>«Agregar»</b> en la pantalla de equipos. Complete el formulario: '
+        'municipio, unidad de salud, tipo, denominación, marca, modelo y los demás '
+        'datos que conozca. Cuantos más datos escriba, más fácil será encontrar el '
+        'equipo después:', styles['cuerpo']))
+    story.append(img('06_equipo_nuevo.png'))
+    story.append(Paragraph(
+        'Si su centro es territorial (municipio), el equipo quedará registrado de '
+        'inmediato, pero el departamento dueño (del centro principal) debe aprobarlo '
+        'en Aprobaciones. Si la aprueban, queda definitivo; si la cancelan, el '
+        'registro se elimina.', styles['paso']))
+    story.append(PageBreak())
+
+    # -------------------------------------------------------- 7. Aprobaciones
+    story.append(Paragraph('7. Revisar las aprobaciones', styles['seccion']))
+    story.append(Paragraph(
+        'En <b>«Aprobaciones»</b> verá dos listas: las <b>solicitudes de equipos</b> '
+        '(equipos pedidos a su departamento) y los <b>cambios pendientes</b> '
+        '(equipos que alguien de un centro territorial creó, editó o eliminó y que '
+        'esperan su visto bueno):', styles['cuerpo']))
+    story.append(img('07_aprobaciones.png'))
+    story.append(Paragraph(
+        '• <b>Aprobar</b>: confirma la solicitud o el cambio.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Cancelar</b>: rechaza y revierte la modificación (si era un equipo '
+        'nuevo, se elimina del inventario).', styles['paso']))
+    story.append(Paragraph(
+        'Revise periódicamente esta pantalla para no dejar solicitudes esperando.',
+        styles['nota']))
+    story.append(PageBreak())
+
+    # ---------------------------------------------------------- 8. Historial
+    story.append(Paragraph('8. Ver el historial', styles['seccion']))
+    story.append(Paragraph(
+        'En <b>«Historial»</b> queda registrado todo lo que se hace con los equipos: '
+        'quién lo creó, editó o eliminó, y cuándo. Sirve para saber en todo momento '
+        'qué pasó con cada equipo:', styles['cuerpo']))
+    story.append(img('08_historial.png'))
+    story.append(Spacer(1, 0.25 * inch))
+    story.append(Paragraph(
+        'Si tiene dudas o encuentra un problema, avise al responsable del sistema '
+        'en su centro. ¡Gracias por usar el sistema!', styles['cuerpo']))
+    story.append(Spacer(1, 0.5 * inch))
+    story.append(Paragraph('Sistema de Inventario — Guía de uso para el personal de los centros', styles['pie']))
+
+    doc.build(story)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="guia-de-uso.pdf"'
+    return response

@@ -63,4 +63,5 @@ urlpatterns = [
     path('centros/contraseñas/', views.centro_contrasenas, name='centro_contrasenas'),
     path('municipios/', views.municipio_list, name='municipio_list'),
     path('municipios/nuevo/', views.municipio_create, name='municipio_create'),
+    path('guia/', views.guia_pdf, name='guia_pdf'),
 ]
