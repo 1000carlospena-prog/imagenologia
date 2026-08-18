@@ -1908,22 +1908,34 @@ def centro_edit(request, pk):
 
 
 def centro_contrasenas(request):
-    """Sesión territorial: cada departamento gestiona SOLO su contraseña LOCAL
-    (la que usa para entrar a SU centro); el Super Admin gestiona todas."""
+    """Gestión de contraseñas de departamentos.
+
+    - Centro TERRITORIAL en sesión: cada departamento gestiona SOLO su
+      contraseña LOCAL (la que usa para entrar a ese centro); el Super Admin
+      gestiona todas las locales.
+    - Centro PROVINCIAL (padre) en sesión: cada departamento gestiona SOLO su
+      propia contraseña; el Super Admin gestiona todas.
+    """
     if not _tiene_sesion(request):
         return redirect('login')
     if request.session.get('is_visitor'):
         return _denegar(request, 'dashboard')
-    centro_pk = request.session.get('centro_territorial_pk')
+    es_staff = request.user.is_staff
+    centro_pk = request.session.get('centro_territorial_pk') or request.session.get('centro_pk')
     if not centro_pk:
         return _denegar(request, 'dashboard')
     centro = get_object_or_404(Centro, pk=centro_pk)
-    if centro.tipo != 'territorial' or not centro.centro_padre_id:
-        return _denegar(request, 'dashboard')
-    es_staff = request.user.is_staff
-    departamentos = Departamento.objects.filter(
-        centro_id=centro.centro_padre_id, activo=True,
-    ).order_by('nombre')
+    es_territorial = centro.tipo == 'territorial' and bool(centro.centro_padre_id)
+    # Departamentos gestionados: los del propio centro (padre) o los del
+    # centro padre cuando la sesión es de un centro territorial.
+    if es_territorial:
+        departamentos = Departamento.objects.filter(
+            centro_id=centro.centro_padre_id, activo=True,
+        ).order_by('nombre')
+    else:
+        departamentos = Departamento.objects.filter(
+            centro_id=centro.pk, activo=True,
+        ).order_by('nombre')
     if not es_staff:
         # Ningún departamento edita la contraseña de otro: solo la suya.
         propio = _departamento_sesion(request)
@@ -1935,25 +1947,36 @@ def centro_contrasenas(request):
         form = DepartamentoCentroForm(request.POST)
         departamento = departamentos.filter(pk=depto_pk).first()
         if departamento and form.is_valid():
-            local, _ = DepartamentoCentro.objects.update_or_create(
-                departamento=departamento, centro=centro,
-                defaults={'contrasena': make_password(form.cleaned_data['contrasena'])},
-            )
-            _auditar(request, 'editar', 'Centro', centro.pk,
-                     f'Contraseña local de {departamento} en centro territorial {centro.nombre}')
-            messages.success(request, f'Contraseña local de {departamento} actualizada.')
+            nueva = make_password(form.cleaned_data['contrasena'])
+            if es_territorial:
+                DepartamentoCentro.objects.update_or_create(
+                    departamento=departamento, centro=centro,
+                    defaults={'contrasena': nueva},
+                )
+                _auditar(request, 'editar', 'Centro', centro.pk,
+                         f'Contraseña local de {departamento} en centro territorial {centro.nombre}')
+                messages.success(request, f'Contraseña local de {departamento} actualizada.')
+            else:
+                departamento.contrasena = nueva
+                departamento.save(update_fields=['contrasena'])
+                _auditar(request, 'editar', 'Departamento', departamento.pk,
+                         f'Contraseña de {departamento} actualizada')
+                messages.success(request, f'Contraseña de "{departamento}" actualizada.')
         else:
             messages.error(request, 'No se pudo actualizar la contraseña.')
         return redirect('centro_contrasenas')
-    locales = {
-        dc.departamento_id: dc
-        for dc in DepartamentoCentro.objects.filter(centro=centro)
-    }
+    locales = {}
+    if es_territorial:
+        locales = {
+            dc.departamento_id: dc
+            for dc in DepartamentoCentro.objects.filter(centro=centro)
+        }
     return render(request, 'inventario/centro_contrasenas.html', {
         'centro': centro,
         'departamentos': departamentos,
         'locales': locales,
         'es_staff': es_staff,
+        'es_territorial': es_territorial,
         'form': DepartamentoCentroForm(),
     })
 

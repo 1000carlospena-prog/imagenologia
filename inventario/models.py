@@ -18,6 +18,10 @@ class Centro(models.Model):
         related_name='hijos', verbose_name='Centro padre',
     )
     activo = models.BooleanField('Activo', default=True)
+    contrasena = models.CharField(
+        'Contraseña del centro', max_length=255, blank=True, null=True,
+        help_text='Si se define, este centro usa su propia contraseña; si queda vacía, usa la contraseña global del sistema.',
+    )
     municipios_atendidos = models.ManyToManyField(
         'Municipio', blank=True,
         related_name='centros_que_atienden', verbose_name='Municipios que atiende',
@@ -36,6 +40,12 @@ class Centro(models.Model):
             raise ValidationError({
                 'centro_padre': 'Un centro territorial debe tener un centro padre.',
             })
+
+    def verificar_contrasena(self, contrasena):
+        """Contraseña PROPIA del centro; si no tiene, cae en la global."""
+        if self.contrasena:
+            return check_password(contrasena, self.contrasena)
+        return get_configuracion().verificar_contrasena_centro(contrasena)
 
 
 class DepartamentoCentro(models.Model):
@@ -82,11 +92,24 @@ def verificar_contrasena_departamento(departamento, contrasena, centro=None):
 
 
 def centro_provincial_por_defecto():
-    """Centro provincial por defecto ('Santiago de Cuba', D2). Devuelve el pk."""
-    pk = Centro.objects.filter(nombre='Santiago de Cuba').values_list('pk', flat=True).first()
-    if pk is None:
-        return Centro.objects.create(nombre='Santiago de Cuba', tipo='provincial').pk
-    return pk
+    """Centro provincial por defecto ('Santiago de Cuba', D2). Devuelve el pk.
+    Usa SQL directo con columnas mínimas: este callable también se ejecuta
+    durante migraciones antiguas (default de Departamento.centro) cuando la
+    tabla aún no tiene las columnas del modelo actual (p. ej. 'contrasena')."""
+    from django.db import connection
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT id FROM inventario_centro WHERE nombre = %s LIMIT 1",
+            ['Santiago de Cuba'],
+        )
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+        cursor.execute(
+            "INSERT INTO inventario_centro (nombre, tipo, activo) VALUES (%s, %s, %s)",
+            ['Santiago de Cuba', 'provincial', True],
+        )
+        return cursor.lastrowid
 
 
 class Municipio(models.Model):

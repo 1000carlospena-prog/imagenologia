@@ -8,21 +8,30 @@
                 <i class="bi bi-key"></i> Contraseñas de departamentos — {{ centro.nombre }}
             </div>
             <div class="card-body p-4">
-                <p class="text-muted small">
-                    Los departamentos de {{ centro.nombre }} son los del centro padre
-                    ({{ centro.centro_padre.nombre }}). Aquí defines la contraseña que cada uno usa
-                    para entrar a <strong>{{ centro.nombre }}</strong>. Si no defines una, usan su
-                    contraseña habitual del centro padre.
-                </p>
+                {% if es_territorial %}
+                    <p class="text-muted small">
+                        Los departamentos de {{ centro.nombre }} son los del centro padre
+                        ({{ centro.centro_padre.nombre }}). Aquí defines la contraseña que cada uno usa
+                        para entrar a <strong>{{ centro.nombre }}</strong>. Si no defines una, usan su
+                        contraseña habitual del centro padre.
+                    </p>
+                {% else %}
+                    <p class="text-muted small">
+                        Aquí cada departamento del centro {{ centro.nombre }} cambia
+                        <strong>su propia contraseña</strong>. El Super Admin puede cambiarlas todas.
+                    </p>
+                {% endif %}
                 {% if departamentos %}
                     {% for departamento in departamentos %}
                         <div class="border rounded p-3 mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <strong>{{ departamento.nombre }}</strong>
-                                {% if departamento.pk in locales %}
-                                    <span class="badge bg-success">Contraseña local definida</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">Usa la del centro padre</span>
+                                {% if es_territorial %}
+                                    {% if departamento.pk in locales %}
+                                        <span class="badge bg-success">Contraseña local definida</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Usa la del centro padre</span>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                             <form method="POST" class="row g-2 align-items-end">
@@ -42,7 +51,7 @@
                     {% endfor %}
                 {% else %}
                     <div class="alert alert-info py-2 small">
-                        El centro padre no tiene departamentos activos aún.
+                        Este centro no tiene departamentos activos aún.
                     </div>
                 {% endif %}
                 <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary w-100 mt-2">Volver</a>

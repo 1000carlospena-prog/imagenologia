@@ -117,7 +117,7 @@
                         </a>
                     </li>
                 {% endif %}
-                {% if request.session.centro_territorial_pk %}
+                {% if request.session.centro_territorial_pk or request.session.departamento_pk %}
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'centro_contrasenas' %}" aria-label="Contraseñas de departamentos" title="Contraseñas de departamentos">
                             <i class="bi bi-key fs-5"></i>

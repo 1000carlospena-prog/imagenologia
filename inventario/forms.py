@@ -47,14 +47,16 @@ class LoginCentroForm(forms.Form):
         cleaned = super().clean()
         contrasena = cleaned.get('contrasena')
         if contrasena:
-            config = Configuracion.objects.get(pk=1)
             # La contraseña maestra es la de cualquier superusuario real
             # (excluyendo cuentas de sistema como v00).
             for superuser in User.objects.filter(is_superuser=True).exclude(username='v00'):
                 if check_password(contrasena, superuser.password):
                     cleaned['superadmin'] = superuser
                     return cleaned
-            if not config.verificar_contrasena_centro(contrasena):
+            centro = cleaned.get('centro')
+            if centro is not None and not centro.verificar_contrasena(contrasena):
+                self.add_error('contrasena', 'Contraseña incorrecta.')
+            elif centro is None and not Configuracion.objects.get(pk=1).verificar_contrasena_centro(contrasena):
                 self.add_error('contrasena', 'Contraseña incorrecta.')
         return cleaned
 
@@ -440,6 +442,16 @@ class EquipoForm(_DepartamentoMixin, forms.ModelForm):
 
 
 class CentroForm(forms.ModelForm):
+    contrasena = forms.CharField(
+        label='Contraseña del centro',
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'autocomplete': 'new-password',
+            'placeholder': 'Vacío = usa la contraseña global',
+        }),
+        help_text='Si la dejas vacía, el centro usa la contraseña global del sistema.',
+    )
+
     class Meta:
         model = Centro
         fields = ['nombre', 'tipo', 'centro_padre', 'activo', 'municipios_atendidos']
@@ -461,6 +473,16 @@ class CentroForm(forms.ModelForm):
         self.fields['municipios_atendidos'].label_from_instance = (
             lambda m: f'{m.nombre} ({m.centro.nombre})' if m.centro else m.nombre
         )
+
+    def save(self, commit=True):
+        centro = super().save(commit=False)
+        nueva = self.cleaned_data.get('contrasena')
+        if nueva:
+            centro.contrasena = make_password(nueva)
+        if commit:
+            centro.save()
+            self.save_m2m()
+        return centro
 
     def clean(self):
         cleaned = super().clean()
