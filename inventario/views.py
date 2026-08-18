@@ -2021,7 +2021,7 @@ def guia_pdf(request):
     from reportlab.lib.units import inch
     from reportlab.lib import colors
     from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak, Table, TableStyle,
+        SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak,
     )
 
     guia_dir = Path(__file__).resolve().parent / 'static' / 'inventario' / 'guia'
@@ -2077,20 +2077,6 @@ def guia_pdf(request):
         'aprobaciones pendientes y ver el historial de cambios. Está pensada para '
         'personas que usan el sistema por primera vez.', styles['cuerpo']))
     story.append(Spacer(1, 0.3 * inch))
-    nota_portada = Table([[Paragraph(
-        '<b>Nota:</b> esta guía no incluye la administración de usuarios ni las '
-        'órdenes de servicio. Esas funciones corresponden únicamente al personal '
-        'autorizado del departamento de Imagenología.', styles['cuerpo'])]],
-        colWidths=[6.6 * inch])
-    nota_portada.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fff3cd')),
-        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#ffc107')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-    ]))
-    story.append(nota_portada)
     story.append(PageBreak())
 
     # ------------------------------------------------------- 1. Entrar al sistema
@@ -2102,8 +2088,8 @@ def guia_pdf(request):
     story.append(img('01_login.png'))
     story.append(Paragraph('1. Elija su centro en la lista (si aparece).', styles['paso']))
     story.append(Paragraph(
-        '2. Escriba la contraseña del centro. Es la misma para todo el centro '
-        '(CICEM); se la entrega el personal autorizado.', styles['paso']))
+        '2. Escriba la contraseña del centro. La contraseña por defecto es '
+        '<b>12345678</b> y se puede cambiar después desde el sistema.', styles['paso']))
     story.append(Paragraph(
         '3. Pulse el botón <b>«Entrar al centro»</b>.', styles['paso']))
     story.append(PageBreak())
@@ -2116,10 +2102,16 @@ def guia_pdf(request):
     story.append(img('02_login_departamento.png'))
     story.append(Paragraph('1. Elija su departamento en la lista.', styles['paso']))
     story.append(Paragraph(
-        '2. Escriba la contraseña del departamento y pulse <b>«Entrar»</b>.', styles['paso']))
+        '2. Escriba la contraseña del departamento y pulse <b>«Entrar»</b>. '
+        'La contraseña por defecto también es <b>12345678</b> y se puede editar '
+        'desde el sistema.', styles['paso']))
     story.append(Paragraph(
         'Si su centro es territorial (municipio), los departamentos que verá son los '
         'del centro principal al que pertenece.', styles['nota']))
+    story.append(Paragraph(
+        '¿No encuentra su departamento en la lista? Puede crearlo: en esta misma '
+        'pantalla pulse <b>«Crear nuevo departamento»</b> (el enlace aparece bajo el '
+        'botón Entrar) y siga los pasos.', styles['paso']))
     story.append(PageBreak())
 
     # ----------------------------------------------------- 3. Elegir tu nombre
