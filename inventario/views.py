@@ -21,7 +21,7 @@ from .forms import (
     PersonaForm, OrdenTrabajoForm, AsignacionForm, LoginForm, LoginDepartamentoForm,
     LoginCentroForm, ConfiguracionContrasenaForm, QuickPersonaForm, ParteTrabajoForm,
     EquipoForm, CrearDepartamentoForm, CentroForm, MunicipioForm,
-    DepartamentoEditarForm, DepartamentoContrasenaForm, DepartamentoCentroForm,
+    DepartamentoEditarForm, DepartamentoContrasenaForm, MiContrasenaForm,
 )
 
 
@@ -523,7 +523,6 @@ def select_persona(request):
             form = QuickPersonaForm(request.POST)
             if form.is_valid():
                 persona = form.save(commit=False)
-                persona.apellido = persona.nombre
                 persona.activo = True
                 departamento = _departamento_sesion(request) or Departamento.objects.first()
                 if departamento is None:
@@ -532,7 +531,10 @@ def select_persona(request):
                 centro_pk = request.session.get('centro_territorial_pk')
                 persona.centro_origen = Centro.objects.filter(pk=centro_pk).first() if centro_pk else None
                 persona.save()
-                messages.success(request, f'Persona "{persona.nombre}" creada. Selecciónala para iniciar.')
+                mensaje = f'Persona "{persona}" creada. Selecciónala para iniciar.'
+                if persona.contrasena:
+                    mensaje = f'Persona "{persona}" creada con contraseña. Selecciónala para iniciar.'
+                messages.success(request, mensaje)
                 return redirect('select_persona')
             else:
                 personas = _personas_visibles(request).filter(activo=True).order_by('apellido', 'nombre')
@@ -550,6 +552,37 @@ def select_persona(request):
         'form': form,
         'mostrar_departamento': mostrar_departamento,
         'config': config,
+    })
+
+
+def persona_mi_contrasena(request):
+    """La persona con sesión activa cambia SU propia contraseña."""
+    if not _tiene_sesion(request):
+        return redirect('login')
+    persona_id = request.session.get('persona_id')
+    persona = Persona.objects.filter(pk=persona_id).first() if persona_id else None
+    if persona is None:
+        messages.error(request, 'Debes iniciar sesión como persona para cambiar tu contraseña.')
+        return redirect('select_persona')
+    if request.method == 'POST':
+        form = MiContrasenaForm(request.POST)
+        if form.is_valid():
+            actual = form.cleaned_data['contrasena_actual']
+            nueva = form.cleaned_data['nueva_contrasena']
+            if persona.contrasena and not check_password(actual, persona.contrasena):
+                form.add_error('contrasena_actual', 'La contraseña actual no es correcta.')
+            else:
+                persona.contrasena = make_password(nueva)
+                persona.save(update_fields=['contrasena', 'fecha_actualizacion'])
+                _auditar(request, 'editar', 'Persona', persona.pk,
+                         f'Contraseña propia de {persona} cambiada')
+                messages.success(request, 'Tu contraseña se actualizó correctamente.')
+                return redirect('dashboard')
+    else:
+        form = MiContrasenaForm()
+    return render(request, 'inventario/persona_contrasena.html', {
+        'form': form,
+        'persona': persona,
     })
 
 
@@ -1908,80 +1941,6 @@ def centro_edit(request, pk):
     return render(request, 'inventario/centro_form.html', {'form': form, 'centro': centro})
 
 
-def centro_contrasenas(request):
-    """Gestión de contraseñas de departamentos.
-
-    - Centro TERRITORIAL en sesión: cada departamento gestiona SOLO su
-      contraseña LOCAL (la que usa para entrar a ese centro); el Super Admin
-      gestiona todas las locales.
-    - Centro PROVINCIAL (padre) en sesión: cada departamento gestiona SOLO su
-      propia contraseña; el Super Admin gestiona todas.
-    """
-    if not _tiene_sesion(request):
-        return redirect('login')
-    if request.session.get('is_visitor'):
-        return _denegar(request, 'dashboard')
-    es_staff = request.user.is_staff
-    centro_pk = request.session.get('centro_territorial_pk') or request.session.get('centro_pk')
-    if not centro_pk:
-        return _denegar(request, 'dashboard')
-    centro = get_object_or_404(Centro, pk=centro_pk)
-    es_territorial = centro.tipo == 'territorial' and bool(centro.centro_padre_id)
-    # Departamentos gestionados: los del propio centro (padre) o los del
-    # centro padre cuando la sesión es de un centro territorial.
-    if es_territorial:
-        departamentos = Departamento.objects.filter(
-            centro_id=centro.centro_padre_id, activo=True,
-        ).order_by('nombre')
-    else:
-        departamentos = Departamento.objects.filter(
-            centro_id=centro.pk, activo=True,
-        ).order_by('nombre')
-    if not es_staff:
-        # Ningún departamento edita la contraseña de otro: solo la suya.
-        propio = _departamento_sesion(request)
-        if propio is None:
-            return _denegar(request, 'dashboard')
-        departamentos = departamentos.filter(pk=propio.pk)
-    if request.method == 'POST':
-        depto_pk = request.POST.get('departamento_pk')
-        form = DepartamentoCentroForm(request.POST)
-        departamento = departamentos.filter(pk=depto_pk).first()
-        if departamento and form.is_valid():
-            nueva = make_password(form.cleaned_data['contrasena'])
-            if es_territorial:
-                DepartamentoCentro.objects.update_or_create(
-                    departamento=departamento, centro=centro,
-                    defaults={'contrasena': nueva},
-                )
-                _auditar(request, 'editar', 'Centro', centro.pk,
-                         f'Contraseña local de {departamento} en centro territorial {centro.nombre}')
-                messages.success(request, f'Contraseña local de {departamento} actualizada.')
-            else:
-                departamento.contrasena = nueva
-                departamento.save(update_fields=['contrasena'])
-                _auditar(request, 'editar', 'Departamento', departamento.pk,
-                         f'Contraseña de {departamento} actualizada')
-                messages.success(request, f'Contraseña de "{departamento}" actualizada.')
-        else:
-            messages.error(request, 'No se pudo actualizar la contraseña.')
-        return redirect('centro_contrasenas')
-    locales = {}
-    if es_territorial:
-        locales = {
-            dc.departamento_id: dc
-            for dc in DepartamentoCentro.objects.filter(centro=centro)
-        }
-    return render(request, 'inventario/centro_contrasenas.html', {
-        'centro': centro,
-        'departamentos': departamentos,
-        'locales': locales,
-        'es_staff': es_staff,
-        'es_territorial': es_territorial,
-        'form': DepartamentoCentroForm(),
-    })
-
-
 def municipio_create(request):
     if not request.user.is_staff:
         return redirect('login')
@@ -2150,17 +2109,55 @@ def guia_pdf(request):
     story.append(PageBreak())
 
     # ----------------------------------------------------------- 5. Equipos
-    story.append(Paragraph('5. Consultar los equipos', styles['seccion']))
+    story.append(Paragraph('5. Consultar los equipos (Inventario)', styles['seccion']))
     story.append(Paragraph(
         'Pulse <b>«Equipos»</b> en la barra superior. Verá el inventario con todos '
-        'los equipos de su departamento. Puede buscar por texto, marca, modelo, '
-        'unidad de salud o municipio, y exportar los datos si el sistema lo permite:',
-        styles['cuerpo']))
+        'los equipos de su departamento, organizados por lugar: primero los de '
+        '<b>Santiago de Cuba</b> agrupados por hospital o unidad de salud, después '
+        'los equipos de los <b>demás municipios</b> agrupados por municipio, y al '
+        'final los equipos <b>sin municipio</b> asignado. Arriba a la derecha se '
+        'muestra el total de equipos del inventario:', styles['cuerpo']))
     story.append(img('05_equipos.png'))
+    story.append(Paragraph('Cómo buscar y filtrar', styles['paso']))
     story.append(Paragraph(
-        'Pulse <b>«Agregar»</b> para registrar un equipo nuevo, o el botón de '
-        'editar/eliminar de cada fila para modificar o quitar un equipo.',
+        'En la parte superior de la pantalla hay una barra de filtros. Escriba o '
+        'seleccione los criterios que quiera y pulse <b>«Filtrar»</b>:', styles['cuerpo']))
+    story.append(Paragraph(
+        '• <b>Buscar texto</b>: sirve para localizar un equipo escribiendo cualquier '
+        'dato: marca, modelo, número de serie, unidad de salud (hospital) o '
+        'municipio. No hace falta escribir la palabra completa.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Marca</b> y <b>Modelo</b>: despliegue la lista y elija una opción para '
+        'ver solo los equipos de esa marca o de ese modelo.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Unidad de salud</b>: mantenga pulsado (clic) para seleccionar una o '
+        'varias unidades; con <b>Ctrl</b> + clic elige varias a la vez. Sirve para '
+        'ver los equipos de uno o varios hospitales juntos.', styles['paso']))
+    story.append(Paragraph(
+        '• <b>Municipio</b> y <b>Estado</b>: elija un municipio o un estado del '
+        'equipo (por ejemplo, en uso o en reparación) para reducir la lista.',
         styles['paso']))
+    story.append(Paragraph(
+        'Puede combinar varios filtros a la vez (por ejemplo, una marca y un '
+        'municipio). Para volver a ver todo, pulse <b>«Limpiar»</b>.', styles['paso']))
+    story.append(Paragraph('Qué significa cada detalle de la lista', styles['paso']))
+    story.append(Paragraph(
+        '• Cada fila muestra el <b>nombre del equipo</b> (pulse en él para ver su '
+        'ubicación y moverlo), la marca, el modelo, el número de serie y el estado.',
+        styles['paso']))
+    story.append(Paragraph(
+        '• Las filas en <b>verde</b> con la etiqueta <b>«En préstamo»</b> son '
+        'equipos que están temporalmente en otra unidad o municipio.', styles['paso']))
+    story.append(Paragraph(
+        '• Debajo del nombre puede aparecer una nota breve del equipo y, al final de '
+        'la fila, los botones para <b>editar</b> o <b>eliminar</b>.', styles['paso']))
+    story.append(Paragraph(
+        '• El botón <b>«Duplicados»</b> (amarillo, arriba) muestra los equipos con '
+        'el mismo número de serie, para revisar si hay registros repetidos.',
+        styles['paso']))
+    story.append(Paragraph(
+        'Pulse <b>«Agregar»</b> para registrar un equipo nuevo (se explica en la '
+        'sección 6).', styles['paso']))
     story.append(PageBreak())
 
     # ------------------------------------------------------ 6. Registrar equipo

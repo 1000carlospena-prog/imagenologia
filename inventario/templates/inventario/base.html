@@ -93,6 +93,11 @@
                 {% endif %}
                 {% if persona_actual and not user.is_superuser %}
                     <li class="nav-item">
+                        <a class="nav-link py-1 px-2" href="{% url 'persona_mi_contrasena' %}" title="Cambiar mi contraseña" aria-label="Cambiar mi contraseña">
+                            <i class="bi bi-key fs-5"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'select_persona' %}" title="Cambiar usuario" aria-label="Cambiar usuario">
                             <i class="bi bi-person-circle fs-5"></i>
                         </a>
@@ -114,13 +119,6 @@
                     <li class="nav-item">
                         <a class="nav-link py-1 px-2" href="{% url 'centro_list' %}" aria-label="Administrar centros" title="Centros">
                             <i class="bi bi-hospital fs-5"></i>
-                        </a>
-                    </li>
-                {% endif %}
-                {% if request.session.centro_territorial_pk or request.session.departamento_pk %}
-                    <li class="nav-item">
-                        <a class="nav-link py-1 px-2" href="{% url 'centro_contrasenas' %}" aria-label="Contraseñas de departamentos" title="Contraseñas de departamentos">
-                            <i class="bi bi-key fs-5"></i>
                         </a>
                     </li>
                 {% endif %}

@@ -1,0 +1,61 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Mi contraseña - Imagenología{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h4 class="fw-bold mb-1"><i class="bi bi-key"></i> Cambiar mi contraseña</h4>
+                <p class="text-muted mb-4">
+                    Estás cambiando la contraseña de <strong>{{ persona }}</strong>.
+                </p>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show py-2 small" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label small" for="id_contrasena_actual">Contraseña actual</label>
+                        {{ form.contrasena_actual }}
+                        <div class="text-muted small">Deja en blanco si aún no tenías contraseña.</div>
+                        {% if form.contrasena_actual.errors %}
+                            <div class="text-danger small mt-1">{{ form.contrasena_actual.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small" for="id_nueva_contrasena">Nueva contraseña</label>
+                        {{ form.nueva_contrasena }}
+                        {% if form.nueva_contrasena.errors %}
+                            <div class="text-danger small mt-1">{{ form.nueva_contrasena.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small" for="id_confirmar_contrasena">Confirmar nueva contraseña</label>
+                        {{ form.confirmar_contrasena }}
+                        {% if form.confirmar_contrasena.errors %}
+                            <div class="text-danger small mt-1">{{ form.confirmar_contrasena.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-lg"></i> Guardar contraseña
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'dashboard' %}" class="text-muted text-decoration-none small">
+                        <i class="bi bi-arrow-left"></i> Volver al dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

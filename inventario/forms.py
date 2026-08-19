@@ -298,15 +298,69 @@ class LoginForm(AuthenticationForm):
 
 
 class QuickPersonaForm(forms.ModelForm):
+    contrasena = forms.CharField(
+        label='Contraseña',
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Opcional', 'autocomplete': 'new-password',
+        }),
+        help_text='Opcional. Si se asigna, la persona deberá usarla para entrar.',
+    )
+
     class Meta:
         model = Persona
-        fields = ['nombre']
+        fields = ['nombre', 'apellido', 'contrasena']
         widgets = {
             'nombre': forms.TextInput(attrs={
-                'class': 'form-control', 'placeholder': 'Nombre del usuario', 'autocomplete': 'off'
+                'class': 'form-control', 'placeholder': 'Nombre', 'autocomplete': 'given-name'
+            }),
+            'apellido': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'Apellido', 'autocomplete': 'family-name'
             }),
         }
-        labels = {'nombre': 'Nombre'}
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        contrasena = self.cleaned_data.get('contrasena')
+        if contrasena:
+            instance.contrasena = make_password(contrasena)
+        elif not instance.pk:
+            instance.contrasena = None
+        if commit:
+            instance.save()
+        return instance
+
+
+class MiContrasenaForm(forms.Form):
+    contrasena_actual = forms.CharField(
+        label='Contraseña actual',
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Dejar en blanco si aún no tienes contraseña',
+            'autocomplete': 'current-password',
+        }),
+    )
+    nueva_contrasena = forms.CharField(
+        label='Nueva contraseña',
+        min_length=4,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Mínimo 4 caracteres', 'autocomplete': 'new-password',
+        }),
+    )
+    confirmar_contrasena = forms.CharField(
+        label='Confirmar nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 'placeholder': 'Repite la nueva contraseña', 'autocomplete': 'new-password',
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        nueva = cleaned.get('nueva_contrasena')
+        confirmar = cleaned.get('confirmar_contrasena')
+        if nueva and confirmar and nueva != confirmar:
+            self.add_error('confirmar_contrasena', 'Las contraseñas no coinciden.')
+        return cleaned
 
 
 class ParteTrabajoForm(_DepartamentoMixin, forms.ModelForm):
@@ -499,15 +553,6 @@ class CentroForm(forms.ModelForm):
                 if ajenos:
                     self.add_error('municipios', 'Los municipios deben pertenecer al centro padre seleccionado.')
         return cleaned
-
-
-class DepartamentoCentroForm(forms.Form):
-    contrasena = forms.CharField(
-        label='Contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control', 'autocomplete': 'new-password',
-        }),
-    )
 
 
 class MunicipioForm(forms.ModelForm):
